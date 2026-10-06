@@ -1,2049 +1,715 @@
 <!DOCTYPE html>
 <html lang="ru">
-
 <head>
-
 <meta charset="UTF-8">
-
-<meta
-  name="viewport"
-  content="
-    width=device-width,
-    initial-scale=1,
-    maximum-scale=1,
-    user-scalable=no
-  "
->
-
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Приёмка товара</title>
 
-
-<script
-  src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js">
-</script>
-
-
-<script
-  src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js">
-</script>
-
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-
-  margin: 0;
-
-  background:
-    #0f172a;
-
-  color:
-    white;
-
-  font-family:
-    Arial,
-    sans-serif;
-}
-
-
-.wrap {
-
-  max-width:
-    620px;
-
-  margin:
-    auto;
-
-  padding:
-    14px;
-}
-
-
-.card {
-
-  background:
-    #1e293b;
-
-  border-radius:
-    15px;
-
-  padding:
-    15px;
-
-  margin-bottom:
-    12px;
-}
-
-
-.title {
-
-  font-size:
-    22px;
-
-  font-weight:
-    bold;
-
-  margin-bottom:
-    12px;
-}
-
-
-.stats {
-
-  display:
-    grid;
-
-  grid-template-columns:
-    repeat(3, 1fr);
-
-  text-align:
-    center;
-
-  gap:
-    8px;
-}
-
-
-.num {
-
-  font-size:
-    26px;
-
-  font-weight:
-    bold;
-}
-
-
-.label {
-
-  font-size:
-    12px;
-
-  color:
-    #cbd5e1;
-}
-
-
-input {
-
-  width:
-    100%;
-
-  border:
-    0;
-
-  border-radius:
-    10px;
-
-  padding:
-    15px;
-
-  font-size:
-    18px;
-}
-
-
-button {
-
-  width:
-    100%;
-
-  border:
-    0;
-
-  border-radius:
-    10px;
-
-  padding:
-    15px;
-
-  font-size:
-    17px;
-
-  font-weight:
-    bold;
-
-  margin-top:
-    9px;
-}
-
-
-.blue {
-
-  background:
-    #2563eb;
-
-  color:
-    white;
-}
-
-
-.gray {
-
-  background:
-    #475569;
-
-  color:
-    white;
-}
-
-
-.ok {
-
-  background:
-    #14532d;
-
-  border:
-    2px solid
-    #22c55e;
-}
-
-
-.warn {
-
-  background:
-    #78350f;
-
-  border:
-    2px solid
-    #f59e0b;
-}
-
-
-.bad {
-
-  background:
-    #7f1d1d;
-
-  border:
-    2px solid
-    #ef4444;
-}
-
-
-.search {
-
-  background:
-    #1e3a8a;
-
-  border:
-    2px solid
-    #3b82f6;
-}
-
-
-#reader {
-
-  width:
-    100%;
-
-  background:
-    black;
-
-  border-radius:
-    12px;
-
-  overflow:
-    hidden;
-}
-
-
-.status {
-
-  min-height:
-    85px;
-
-  line-height:
-    1.5;
-}
-
-
-.hidden {
-
-  display:
-    none;
-}
-
-
-.small {
-
-  font-size:
-    12px;
-
-  color:
-    #cbd5e1;
-
-  line-height:
-    1.5;
-}
-
+*{box-sizing:border-box}
+body{margin:0;background:#0f172a;color:#fff;font-family:Arial,sans-serif}
+.wrap{max-width:620px;margin:auto;padding:14px}
+.card{background:#1e293b;border-radius:15px;padding:15px;margin-bottom:12px}
+.title{font-size:22px;font-weight:700;margin-bottom:12px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;gap:8px}
+.num{font-size:26px;font-weight:700}
+.label{font-size:12px;color:#cbd5e1}
+input{width:100%;border:0;border-radius:10px;padding:15px;font-size:18px}
+button{width:100%;border:0;border-radius:10px;padding:15px;font-size:17px;font-weight:700;margin-top:9px}
+.blue{background:#2563eb;color:#fff}
+.gray{background:#475569;color:#fff}
+.ok{background:#14532d;border:2px solid #22c55e}
+.warn{background:#78350f;border:2px solid #f59e0b}
+.bad{background:#7f1d1d;border:2px solid #ef4444}
+.search{background:#1e3a8a;border:2px solid #3b82f6}
+#reader{width:100%;background:#000;border-radius:12px;overflow:hidden}
+.status{min-height:85px;line-height:1.5}
+.hidden{display:none}
+.small{font-size:12px;color:#cbd5e1;line-height:1.5}
 </style>
-
 </head>
 
-
 <body>
-
-
 <div class="wrap">
 
-
-<div
-  id="login"
-  class="card"
->
-
-  <div class="title">
-    📦 Приёмка товара
-  </div>
-
-  <div class="small">
-    Введи PIN из Code.gs
-  </div>
-
-  <input
-    id="pin"
-    type="password"
-    inputmode="numeric"
-    placeholder="PIN"
-  >
-
-  <button
-    class="blue"
-    onclick="login()"
-  >
-    ВОЙТИ
-  </button>
-
+<div id="login" class="card">
+  <div class="title">📦 Приёмка товара</div>
+  <div class="small">Введи PIN из Code.gs</div>
+  <input id="pin" type="password" inputmode="numeric" placeholder="PIN">
+  <button class="blue" onclick="login()">ВОЙТИ</button>
 </div>
 
+<div id="app" class="hidden">
 
-<div
-  id="app"
-  class="hidden"
->
+  <div class="card">
+    <div id="shipment" class="title">📦 Приёмка</div>
 
-
-<div class="card">
-
-  <div
-    id="shipment"
-    class="title"
-  >
-    📦 Приёмка
-  </div>
-
-
-  <div class="stats">
-
-
-    <div>
-
-      <div
-        id="accepted"
-        class="num"
-      >
-        0
+    <div class="stats">
+      <div>
+        <div id="accepted" class="num">0</div>
+        <div class="label">принято</div>
       </div>
 
-      <div class="label">
-        принято
+      <div>
+        <div id="expected" class="num">0</div>
+        <div class="label">ожидается</div>
       </div>
 
+      <div>
+        <div id="remaining" class="num">0</div>
+        <div class="label">осталось</div>
+      </div>
     </div>
+  </div>
 
+  <div class="card">
+    <button id="start" class="blue" onclick="startCamera()">📷 ЗАПУСТИТЬ КАМЕРУ</button>
+    <button id="ocrButton" class="gray hidden" onclick="runOcr(true)">🔍 РАСПОЗНАТЬ АРТИКУЛ СЕЙЧАС</button>
+  </div>
 
-    <div>
+  <div id="camera" class="card hidden">
+    <div id="reader"></div>
+  </div>
 
-      <div
-        id="expected"
-        class="num"
-      >
-        0
-      </div>
+  <div id="statusCard" class="card search">
+    <div id="status" class="status">Нажми «Запустить камеру»</div>
+  </div>
 
-      <div class="label">
-        ожидается
-      </div>
-
+  <div class="card">
+    <div class="small">
+      Камера работает в двух независимых режимах:
+      <br>• штрихкод/EAN — через сканер кода;
+      <br>• артикул — OCR по всему изображению.
+      <br><br>
+      Артикул может находиться в любом месте упаковки.
+      Если сначала считался новый EAN, можно перевести камеру на другую сторону коробки,
+      где крупно напечатан артикул — система продолжит его искать и сама свяжет EAN → артикул.
     </div>
-
-
-    <div>
-
-      <div
-        id="remaining"
-        class="num"
-      >
-        0
-      </div>
-
-      <div class="label">
-        осталось
-      </div>
-
-    </div>
-
-
   </div>
 
 </div>
-
-
-<div class="card">
-
-  <button
-    id="start"
-    class="blue"
-    onclick="startCamera()"
-  >
-    📷 ЗАПУСТИТЬ КАМЕРУ
-  </button>
-
-
-  <button
-    id="ocrButton"
-    class="gray hidden"
-    onclick="runOcr(true)"
-  >
-    🔍 РАСПОЗНАТЬ АРТИКУЛ
-  </button>
-
 </div>
-
-
-<div
-  id="camera"
-  class="card hidden"
->
-
-  <div id="reader"></div>
-
-</div>
-
-
-<div
-  id="statusCard"
-  class="card search"
->
-
-  <div
-    id="status"
-    class="status"
-  >
-
-    Нажми «Запустить камеру»
-
-  </div>
-
-</div>
-
-
-<div class="card">
-
-  <div class="small">
-
-    Камера ищет одновременно:
-
-    <br>
-    • EAN / штрихкод
-
-    <br>
-    • напечатанный артикул
-
-    <br><br>
-
-    Неизвестный EAN автоматически
-    привяжется к найденному артикулу.
-
-  </div>
-
-</div>
-
-
-</div>
-
-</div>
-
-
 
 <script>
-
-
 const API =
 'https://script.google.com/macros/s/AKfycby83Hxy4yg9Gtv5UaObBTqHJ4fu_9Vy5Fwuc-E6Hy9tKV09Q9z2MUpkanFRYNsI_J8r/exec';
 
-
-let accessPin =
-  localStorage.getItem(
-    'warehousePin'
-  ) || '';
-
-
-let catalog =
-  [];
-
-
-let qr =
-  null;
-
-
-let cameraStarted =
-  false;
-
-
-let ocrWorker =
-  null;
-
-
-let ocrReady =
-  false;
-
-
-let ocrBusy =
-  false;
-
-
-let serverBusy =
-  false;
-
-
-let pendingBarcode =
-  '';
-
-
-let cooldownUntil =
-  0;
-
-
-let lastBarcode =
-  '';
-
-
-let lastBarcodeTime =
-  0;
-
-
-let lastArticle =
-  '';
-
-
-let lastArticleTime =
-  0;
-
-
-
-/* =========================
-   API JSONP
-========================= */
-
-function api(
-  action,
-  params = {}
-) {
-
-  return new Promise(
-    function(
-      resolve,
-      reject
-    ) {
-
-
-      const callback =
-        '__cb_' +
-        Date.now() +
-        '_' +
-        Math.random()
-          .toString(36)
-          .slice(2);
-
-
-      const script =
-        document
-          .createElement(
-            'script'
-          );
-
-
-      const timeout =
-        setTimeout(
-          function() {
-
-            cleanup();
-
-            reject(
-              new Error(
-                'Apps Script не ответил'
-              )
-            );
-
-          },
-          20000
-        );
-
-
-      function cleanup() {
-
-        clearTimeout(
-          timeout
-        );
-
-
-        try {
-
-          delete window[
-            callback
-          ];
-
-        } catch(e) {}
-
-
-        if (
-          script.parentNode
-        ) {
-
-          script
-            .parentNode
-            .removeChild(
-              script
-            );
-        }
-      }
-
-
-      window[
-        callback
-      ] =
-        function(data) {
-
-          cleanup();
-
-
-          if (
-            data &&
-            data.ok
-          ) {
-
-            resolve(
-              data
-            );
-
-          }
-
-          else {
-
-            reject(
-              new Error(
-                data &&
-                data.error
-                  ?
-                  data.error
-                  :
-                  'Ошибка API'
-              )
-            );
-          }
-        };
-
-
-      const query =
-        new URLSearchParams(
-          Object.assign(
-            {
-              action:
-                action,
-
-              pin:
-                accessPin,
-
-              callback:
-                callback,
-
-              _:
-                Date.now()
-            },
-            params
-          )
-        );
-
-
-      script.src =
-        API +
-        '?' +
-        query.toString();
-
-
-      script.onerror =
-        function() {
-
-          cleanup();
-
-          reject(
-            new Error(
-              'Не удалось подключиться к Apps Script'
-            )
-          );
-        };
-
-
-      document
-        .body
-        .appendChild(
-          script
-        );
-
+let accessPin = localStorage.getItem('warehousePin') || '';
+let catalog = [];
+
+let qr = null;
+let cameraStarted = false;
+
+let ocrWorker = null;
+let ocrReady = false;
+let ocrBusy = false;
+
+let serverBusy = false;
+let pendingBarcode = '';
+
+let cooldownUntil = 0;
+
+let lastBarcode = '';
+let lastBarcodeTime = 0;
+
+let lastArticle = '';
+let lastArticleTime = 0;
+
+let ocrZoneIndex = 0;
+
+const OCR_ZONES = [
+  {name:'весь кадр', x:0, y:0, w:1, h:1, scale:1.25},
+  {name:'верх', x:0, y:0, w:1, h:.55, scale:1.7},
+  {name:'середина', x:0, y:.22, w:1, h:.56, scale:1.7},
+  {name:'низ', x:0, y:.45, w:1, h:.55, scale:1.7},
+  {name:'левая часть', x:0, y:0, w:.62, h:1, scale:1.6},
+  {name:'правая часть', x:.38, y:0, w:.62, h:1, scale:1.6}
+];
+
+function api(action, params = {}) {
+  return new Promise(function(resolve, reject) {
+    const callback = '__cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+
+    const timeout = setTimeout(function() {
+      cleanup();
+      reject(new Error('Apps Script не ответил'));
+    }, 20000);
+
+    function cleanup() {
+      clearTimeout(timeout);
+      try { delete window[callback]; } catch(e) {}
+      if (script.parentNode) script.parentNode.removeChild(script);
     }
-  );
+
+    window[callback] = function(data) {
+      cleanup();
+      if (data && data.ok) {
+        resolve(data);
+      } else {
+        reject(new Error(data && data.error ? data.error : 'Ошибка API'));
+      }
+    };
+
+    const query = new URLSearchParams(Object.assign({
+      action: action,
+      pin: accessPin,
+      callback: callback,
+      _: Date.now()
+    }, params));
+
+    script.src = API + '?' + query.toString();
+
+    script.onerror = function() {
+      cleanup();
+      reject(new Error('Не удалось подключиться к Apps Script'));
+    };
+
+    document.body.appendChild(script);
+  });
 }
-
-
-/* =========================
-   LOGIN
-========================= */
 
 async function login() {
+  const value = document.getElementById('pin').value.trim();
+  if (!value) return;
 
-  const value =
-    document
-      .getElementById(
-        'pin'
-      )
-      .value
-      .trim();
-
-
-  if (!value) {
-    return;
-  }
-
-
-  accessPin =
-    value;
-
+  accessPin = value;
 
   try {
-
-    const response =
-      await api(
-        'init'
-      );
-
-
-    localStorage
-      .setItem(
-        'warehousePin',
-        accessPin
-      );
-
-
-    initApp(
-      response.data
-    );
-
-  }
-
-  catch(err) {
-
-    if (
-      String(
-        err.message
-      )
-      .includes(
-        'BAD_PIN'
-      )
-    ) {
-
-      alert(
-        'Неверный PIN'
-      );
-
-    }
-
-    else {
-
-      alert(
-        err.message
-      );
+    const response = await api('init');
+    localStorage.setItem('warehousePin', accessPin);
+    initApp(response.data);
+  } catch(err) {
+    if (String(err.message).includes('BAD_PIN')) {
+      alert('Неверный PIN');
+    } else {
+      alert(err.message);
     }
   }
 }
 
-
-/* =========================
-   INIT
-========================= */
-
-function initApp(
-  data
-) {
-
-  catalog =
-    data.catalog ||
-    [];
-
-
-  document
-    .getElementById(
-      'shipment'
-    )
-    .textContent =
-    '📦 ' +
-    data.shipmentName;
-
-
-  updateSummary(
-    data.summary
-  );
-
-
-  document
-    .getElementById(
-      'login'
-    )
-    .classList
-    .add(
-      'hidden'
-    );
-
-
-  document
-    .getElementById(
-      'app'
-    )
-    .classList
-    .remove(
-      'hidden'
-    );
+function initApp(data) {
+  catalog = data.catalog || [];
+  document.getElementById('shipment').textContent = '📦 ' + data.shipmentName;
+  updateSummary(data.summary);
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
 }
-
-
-/* =========================
-   CAMERA
-========================= */
 
 async function startCamera() {
-
-  if (
-    cameraStarted
-  ) {
-    return;
-  }
-
+  if (cameraStarted) return;
 
   try {
-
-    setStatus(
-      'Запрашиваю камеру…',
-      'search'
-    );
-
-
-    document
-      .getElementById(
-        'camera'
-      )
-      .classList
-      .remove(
-        'hidden'
-      );
-
+    setStatus('Запрашиваю камеру…', 'search');
+    document.getElementById('camera').classList.remove('hidden');
 
     const formats = [
-
-      Html5QrcodeSupportedFormats
-        .EAN_13,
-
-      Html5QrcodeSupportedFormats
-        .EAN_8,
-
-      Html5QrcodeSupportedFormats
-        .UPC_A,
-
-      Html5QrcodeSupportedFormats
-        .UPC_E,
-
-      Html5QrcodeSupportedFormats
-        .CODE_128,
-
-      Html5QrcodeSupportedFormats
-        .CODE_39,
-
-      Html5QrcodeSupportedFormats
-        .ITF
+      Html5QrcodeSupportedFormats.EAN_13,
+      Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.UPC_A,
+      Html5QrcodeSupportedFormats.UPC_E,
+      Html5QrcodeSupportedFormats.CODE_128,
+      Html5QrcodeSupportedFormats.CODE_39,
+      Html5QrcodeSupportedFormats.ITF
     ];
 
+    qr = new Html5Qrcode('reader', { formatsToSupport: formats });
 
-    qr =
-      new Html5Qrcode(
-        'reader',
-        {
-          formatsToSupport:
-            formats
-        }
-      );
+    const cameras = await Html5Qrcode.getCameras();
 
-
-    const cameras =
-      await Html5Qrcode
-        .getCameras();
-
-
-    if (
-      !cameras ||
-      !cameras.length
-    ) {
-
-      throw new Error(
-        'Камера не найдена'
-      );
-    }
-
+    if (!cameras || !cameras.length) throw new Error('Камера не найдена');
 
     const back =
-      cameras.find(
-        function(cam) {
-
-          return /back|rear|environment|зад/i
-            .test(
-              cam.label ||
-              ''
-            );
-        }
-      )
-      ||
-      cameras[
-        cameras.length - 1
-      ];
-
+      cameras.find(function(cam) {
+        return /back|rear|environment|зад/i.test(cam.label || '');
+      })
+      || cameras[cameras.length - 1];
 
     await qr.start(
-
       back.id,
-
       {
-        fps:
-          12,
-
-        qrbox: {
-          width:
-            310,
-          height:
-            150
-        }
+        fps: 12,
+        qrbox: { width: 310, height: 150 }
       },
-
       barcodeFound,
-
       function() {}
     );
 
+    cameraStarted = true;
 
-    cameraStarted =
-      true;
-
-
-    document
-      .getElementById(
-        'start'
-      )
-      .classList
-      .add(
-        'hidden'
-      );
-
-
-    document
-      .getElementById(
-        'ocrButton'
-      )
-      .classList
-      .remove(
-        'hidden'
-      );
-
+    document.getElementById('start').classList.add('hidden');
+    document.getElementById('ocrButton').classList.remove('hidden');
 
     setStatus(
-
-      'Камера работает.<br><br>' +
-      'Наведи на этикетку товара.',
-
+      'Камера работает.<br><br>Наведи на этикетку товара.',
       'search'
     );
 
-
     initOcr();
 
-  }
-
-  catch(err) {
-
+  } catch(err) {
     setStatus(
-
       '❌ Камера не запустилась:<br><br>' +
-      escapeHtml(
-        err.message ||
-        String(err)
-      ) +
-      '<br><br>' +
-      'Открой страницу в Chrome или Safari ' +
-      'и разреши доступ к камере.',
-
+      escapeHtml(err.message || String(err)) +
+      '<br><br>Открой страницу в Chrome или Safari и разреши доступ к камере.',
       'bad'
     );
   }
 }
 
+async function barcodeFound(code) {
+  const now = Date.now();
 
-/* =========================
-   BARCODE
-========================= */
+  if (now < cooldownUntil) return;
+  if (serverBusy) return;
 
-async function barcodeFound(
-  code
-) {
+  /* Пока ищем артикул для уже считанного EAN,
+     новые штрихкоды не принимаем. */
+  if (pendingBarcode) return;
 
-  const now =
-    Date.now();
+  if (code === lastBarcode && now - lastBarcodeTime < 2500) return;
 
+  lastBarcode = code;
+  lastBarcodeTime = now;
+  serverBusy = true;
 
-  if (
-    now <
-    cooldownUntil
-  ) {
-    return;
-  }
-
-
-  if (
-    serverBusy
-  ) {
-    return;
-  }
-
-
-  if (
-    pendingBarcode ===
-    code
-  ) {
-    return;
-  }
-
-
-  if (
-    code ===
-      lastBarcode &&
-    now -
-      lastBarcodeTime
-    <
-    2500
-  ) {
-    return;
-  }
-
-
-  lastBarcode =
-    code;
-
-
-  lastBarcodeTime =
-    now;
-
-
-  serverBusy =
-    true;
-
-
-  vibrate(
-    70
-  );
-
+  vibrate(70);
 
   setStatus(
-
     '📦 Штрихкод:<br><b>' +
-    escapeHtml(
-      code
-    ) +
-    '</b><br><br>' +
-    'Проверяю…',
-
+    escapeHtml(code) +
+    '</b><br><br>Проверяю…',
     'search'
   );
 
-
   try {
-
-    const response =
-      await api(
-
-        'scan',
-
-        {
-          barcode:
-            code
-        }
-      );
-
-
-    handleResult(
-      response.result
-    );
-
-  }
-
-  catch(err) {
-
-    serverBusy =
-      false;
-
-
-    showError(
-      err
-    );
+    const response = await api('scan', { barcode: code });
+    handleResult(response.result);
+  } catch(err) {
+    serverBusy = false;
+    showError(err);
   }
 }
 
-
-/* =========================
-   OCR INIT
-========================= */
-
 async function initOcr() {
-
   try {
-
     setStatus(
-
-      'Камера работает.<br>' +
-      'Загружаю распознавание артикулов…',
-
+      'Камера работает.<br>Загружаю распознавание артикулов…',
       'search'
     );
 
+    ocrWorker = await Tesseract.createWorker('eng');
 
-    ocrWorker =
-      await Tesseract
-        .createWorker(
-          'eng'
-        );
+    await ocrWorker.setParameters({
+      tessedit_char_whitelist:
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-./ ',
+      preserve_interword_spaces: '1',
+      tessedit_pageseg_mode: '11'
+    });
 
-
-    await ocrWorker
-      .setParameters({
-
-        tessedit_char_whitelist:
-          'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-./ ',
-
-        preserve_interword_spaces:
-          '1'
-      });
-
-
-    ocrReady =
-      true;
-
+    ocrReady = true;
 
     setStatus(
-
-      '✅ Готово.<br><br>' +
-      'Наведи камеру на штрихкод ' +
-      'или напечатанный артикул.',
-
+      '✅ Готово.<br><br>Наведи камеру на штрихкод или на любое место упаковки, где напечатан артикул.',
       'search'
     );
 
+    setInterval(function() {
+      runOcr(false);
+    }, 1500);
 
-    setInterval(
-      function() {
-
-        runOcr(
-          false
-        );
-
-      },
-      1900
-    );
-
-  }
-
-  catch(err) {
-
+  } catch(err) {
     setStatus(
-
-      '⚠️ OCR не загрузился, ' +
-      'но штрихкоды можно сканировать.',
-
+      '⚠️ OCR не загрузился, но штрихкоды можно сканировать.',
       'warn'
     );
   }
 }
 
+function getVideo() {
+  const video = document.querySelector('#reader video');
+  if (!video || !video.videoWidth || !video.videoHeight) return null;
+  return video;
+}
 
-/* =========================
-   CAMERA FRAME
-========================= */
+function getFrame(zone) {
+  const video = getVideo();
+  if (!video) return null;
 
-function getFrame() {
+  zone = zone || OCR_ZONES[0];
 
-  const video =
-    document.querySelector(
-      '#reader video'
-    );
+  const sx = Math.round(video.videoWidth * zone.x);
+  const sy = Math.round(video.videoHeight * zone.y);
+  const sw = Math.round(video.videoWidth * zone.w);
+  const sh = Math.round(video.videoHeight * zone.h);
 
+  const canvas = document.createElement('canvas');
 
-  if (
-    !video ||
-    !video.videoWidth
-  ) {
-    return null;
-  }
+  canvas.width = Math.max(1, Math.round(sw * zone.scale));
+  canvas.height = Math.max(1, Math.round(sh * zone.scale));
 
-
-  const canvas =
-    document
-      .createElement(
-        'canvas'
-      );
-
-
-  const ctx =
-    canvas
-      .getContext(
-        '2d'
-      );
-
-
-  const width =
-    video.videoWidth *
-    .95;
-
-
-  const height =
-    video.videoHeight *
-    .82;
-
-
-  const x =
-    (
-      video.videoWidth -
-      width
-    ) / 2;
-
-
-  const y =
-    (
-      video.videoHeight -
-      height
-    ) / 2;
-
-
-  canvas.width =
-    width * 1.4;
-
-
-  canvas.height =
-    height * 1.4;
-
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
   ctx.drawImage(
-
     video,
-
-    x,
-    y,
-    width,
-    height,
-
-    0,
-    0,
-    canvas.width,
-    canvas.height
+    sx, sy, sw, sh,
+    0, 0, canvas.width, canvas.height
   );
 
+  try {
+    const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const d = image.data;
+
+    for (let i = 0; i < d.length; i += 4) {
+      const gray =
+        d[i] * .299 +
+        d[i + 1] * .587 +
+        d[i + 2] * .114;
+
+      let value = (gray - 128) * 1.3 + 128;
+      value = Math.max(0, Math.min(255, value));
+
+      d[i] = value;
+      d[i + 1] = value;
+      d[i + 2] = value;
+    }
+
+    ctx.putImageData(image, 0, 0);
+  } catch(e) {}
 
   return canvas;
 }
 
+async function runOcr(forced) {
+  if (!ocrReady || ocrBusy || serverBusy) return;
+  if (!forced && Date.now() < cooldownUntil) return;
 
-/* =========================
-   OCR
-========================= */
-
-async function runOcr(
-  forced
-) {
-
-  if (
-    !ocrReady ||
-    ocrBusy ||
-    serverBusy
-  ) {
-    return;
-  }
-
-
-  if (
-    !forced &&
-    Date.now() <
-      cooldownUntil
-  ) {
-    return;
-  }
-
-
-  const frame =
-    getFrame();
-
-
-  if (!frame) {
-    return;
-  }
-
-
-  ocrBusy =
-    true;
-
+  ocrBusy = true;
 
   try {
+    let zones;
 
-    const result =
-      await ocrWorker
-        .recognize(
-          frame
+    if (forced) {
+      zones = OCR_ZONES;
+    } else {
+      zones = [OCR_ZONES[ocrZoneIndex % OCR_ZONES.length]];
+      ocrZoneIndex = (ocrZoneIndex + 1) % OCR_ZONES.length;
+    }
+
+    let match = null;
+    let foundZone = '';
+
+    for (let i = 0; i < zones.length; i++) {
+      const zone = zones[i];
+      const frame = getFrame(zone);
+
+      if (!frame) continue;
+
+      if (pendingBarcode && forced) {
+        setStatus(
+          '📦 Штрихкод уже считан.<br><br>' +
+          '🔍 Ищу артикул по всей упаковке…<br>' +
+          '<span style="font-size:12px">Проверяю: ' +
+          escapeHtml(zone.name) +
+          '. Можно перевести камеру с штрихкода на другое место коробки.</span>',
+          'search'
         );
+      }
 
+      const result = await ocrWorker.recognize(frame);
 
-    const text =
-      result.data.text ||
-      '';
+      const text =
+        result && result.data
+          ? (result.data.text || '')
+          : '';
 
+      match = findArticle(text);
 
-    const match =
-      findArticle(
-        text
-      );
-
+      if (match) {
+        foundZone = zone.name;
+        break;
+      }
+    }
 
     if (!match) {
-
       if (forced) {
-
         setStatus(
-
-          '🔍 Артикул не найден.<br><br>' +
-          'Поднеси этикетку ближе и держи ровно.',
-
+          pendingBarcode
+            ?
+            '📦 Штрихкод сохранён.<br><br>' +
+            'Артикул пока не найден.<br><br>' +
+            '➡️ Переведи камеру на любую часть коробки, где крупно написан артикул. ' +
+            'Он не обязан находиться рядом со штрихкодом.<br><br>' +
+            'OCR продолжит автоматически проверять весь кадр.'
+            :
+            '🔍 Артикул пока не найден.<br><br>' +
+            'Наведи камеру именно на место упаковки, где крупно написан артикул.',
           'warn'
         );
       }
 
-
       return;
     }
 
-
-    const now =
-      Date.now();
-
+    const now = Date.now();
 
     if (
-      match.article ===
-        lastArticle &&
-      now -
-        lastArticleTime
-      <
-      2600
+      match.article === lastArticle &&
+      now - lastArticleTime < 2600
     ) {
       return;
     }
 
-
-    lastArticle =
-      match.article;
-
-
-    lastArticleTime =
-      now;
-
-
-    serverBusy =
-      true;
-
+    lastArticle = match.article;
+    lastArticleTime = now;
+    serverBusy = true;
 
     setStatus(
-
       '🔍 Найден артикул:<br>' +
-
-      '<b>' +
-      escapeHtml(
-        match.article
-      ) +
-      '</b><br>' +
-
-      escapeHtml(
-        match.name
-      ) +
-
-      '<br><br>Проверяю…',
-
+      '<b>' + escapeHtml(match.article) + '</b><br>' +
+      escapeHtml(match.name) +
+      '<br><br>' +
+      '<span style="font-size:12px">Распознан в зоне: ' +
+      escapeHtml(foundZone) +
+      '</span><br>Проверяю количество…',
       'search'
     );
 
-
     let response;
 
-
-    if (
-      pendingBarcode
-    ) {
-
-      response =
-        await api(
-
-          'bind',
-
-          {
-            barcode:
-              pendingBarcode,
-
-            article:
-              match.article
-          }
-        );
-
+    if (pendingBarcode) {
+      response = await api(
+        'bind',
+        {
+          barcode: pendingBarcode,
+          article: match.article
+        }
+      );
+    } else {
+      response = await api(
+        'ocr',
+        {
+          article: match.article
+        }
+      );
     }
 
-    else {
+    handleResult(response.result);
 
-      response =
-        await api(
-
-          'ocr',
-
-          {
-            article:
-              match.article
-          }
-        );
-    }
-
-
-    handleResult(
-      response.result
-    );
-
-  }
-
-  catch(err) {
-
-    serverBusy =
-      false;
-
-
-    showError(
-      err
-    );
-
-  }
-
-  finally {
-
-    ocrBusy =
-      false;
+  } catch(err) {
+    serverBusy = false;
+    showError(err);
+  } finally {
+    ocrBusy = false;
   }
 }
 
-
-/* =========================
-   OCR MATCH
-========================= */
-
-function normalize(
-  value
-) {
-
-  return String(
-    value || ''
-  )
+function normalize(value) {
+  return String(value || '')
     .toUpperCase()
-    .replace(
-      /[^A-ZА-Я0-9]/g,
-      ''
-    );
+    .replace(/[^A-ZА-Я0-9]/g, '');
 }
 
-
-function getCandidates(
-  text
-) {
-
+function getCandidates(text) {
   const parts =
-    String(
-      text || ''
-    )
+    String(text || '')
       .toUpperCase()
-      .replace(
-        /[^A-ZА-Я0-9\-./\s]/g,
-        ' '
-      )
+      .replace(/[^A-ZА-Я0-9\-./\s]/g, ' ')
       .split(/\s+/)
-      .map(
-        normalize
-      )
+      .map(normalize)
       .filter(Boolean);
 
+  const set = new Set();
 
-  const set =
-    new Set();
-
-
-  for (
-    let i = 0;
-    i < parts.length;
-    i++
-  ) {
-
-    for (
-      let count = 1;
-      count <= 3;
-      count++
-    ) {
-
-      if (
-        i + count >
-        parts.length
-      ) {
-        break;
-      }
-
+  for (let i = 0; i < parts.length; i++) {
+    for (let count = 1; count <= 4; count++) {
+      if (i + count > parts.length) break;
 
       const value =
         parts
-          .slice(
-            i,
-            i + count
-          )
+          .slice(i, i + count)
           .join('');
 
-
-      if (
-        value.length >= 3
-      ) {
-
-        set.add(
-          value
-        );
-      }
+      if (value.length >= 3) set.add(value);
     }
   }
 
-
-  return [
-    ...set
-  ];
+  return [...set];
 }
 
+function findArticle(text) {
+  const full = normalize(text);
+  const candidates = getCandidates(text);
+  const matches = [];
 
-function findArticle(
-  text
-) {
+  catalog.forEach(function(item) {
+    const article = normalize(item.article);
 
-  const full =
-    normalize(
-      text
-    );
+    if (!article) return;
 
+    const numeric = /^\d+$/.test(article);
 
-  const candidates =
-    getCandidates(
-      text
-    );
+    let found = false;
 
-
-  const matches =
-    [];
-
-
-  catalog.forEach(
-    function(item) {
-
-      const article =
-        normalize(
-          item.article
-        );
-
-
-      if (!article) {
-        return;
-      }
-
-
-      const numeric =
-        /^\d+$/
-          .test(
-            article
-          );
-
-
-      let found =
-        false;
-
-
-      /*
-       * Короткие цифровые артикула
-       * нельзя искать внутри EAN.
-       */
-      if (
-        numeric &&
-        article.length <= 6
-      ) {
-
-        found =
-          candidates
-            .includes(
-              article
-            );
-
-      }
-
-      else {
-
-        found =
-          full.includes(
-            article
-          )
-          ||
-          candidates.includes(
-            article
-          );
-      }
-
-
-      if (found) {
-
-        matches.push({
-
-          article:
-            item.article,
-
-          name:
-            item.name,
-
-          length:
-            article.length
-        });
-      }
+    if (numeric && article.length <= 6) {
+      found = candidates.includes(article);
+    } else {
+      found =
+        full.includes(article)
+        ||
+        candidates.includes(article);
     }
-  );
 
-
-  if (
-    !matches.length
-  ) {
-    return null;
-  }
-
-
-  matches.sort(
-    function(a, b) {
-
-      return (
-        b.length -
-        a.length
-      );
+    if (found) {
+      matches.push({
+        article: item.article,
+        name: item.name,
+        length: article.length
+      });
     }
-  );
+  });
 
+  if (!matches.length) return null;
+
+  matches.sort(function(a, b) {
+    return b.length - a.length;
+  });
 
   return matches[0];
 }
 
+function handleResult(res) {
+  serverBusy = false;
 
-/* =========================
-   RESULT
-========================= */
+  if (res.summary) updateSummary(res.summary);
 
-function handleResult(
-  res
-) {
-
-  serverBusy =
-    false;
-
-
-  if (
-    res.summary
-  ) {
-
-    updateSummary(
-      res.summary
-    );
-  }
-
-
-  if (
-    res.type ===
-    'unknown'
-  ) {
-
-    pendingBarcode =
-      res.barcode;
-
+  if (res.type === 'unknown') {
+    pendingBarcode = res.barcode;
 
     setStatus(
-
       '📦 Штрихкод считан:<br>' +
-
-      '<b>' +
-      escapeHtml(
-        res.barcode
-      ) +
-      '</b><br><br>' +
-
-      'Теперь автоматически ищу ' +
-      'артикул на этой же этикетке.',
-
+      '<b>' + escapeHtml(res.barcode) + '</b><br><br>' +
+      'Теперь ищу артикул по всей упаковке.<br>' +
+      'Можно перевести камеру на другую сторону коробки.',
       'warn'
     );
 
-
-    setTimeout(
-      function() {
-
-        runOcr(
-          true
-        );
-
-      },
-      100
-    );
-
+    setTimeout(function() {
+      runOcr(true);
+    }, 100);
 
     return;
   }
 
-
-  if (
-    res.type ===
-      'complete'
-    ||
-    res.type ===
-      'partial'
-  ) {
-
-    const complete =
-      res.type ===
-      'complete';
-
+  if (res.type === 'complete' || res.type === 'partial') {
+    const complete = res.type === 'complete';
 
     setStatus(
-
-      (
-        complete
-          ?
-          '✅ '
-          :
-          '🟡 '
-      ) +
-
-      '<b>' +
-      escapeHtml(
-        res.name
-      ) +
-      '</b><br><br>' +
-
-      'Артикул: <b>' +
-      escapeHtml(
-        res.article
-      ) +
-      '</b><br>' +
-
-      'Нужно: ' +
-      res.expected +
-      '<br>' +
-
-      'Принято: <b>' +
-      res.accepted +
-      '</b><br>' +
-
-      'Осталось: <b>' +
-      res.remaining +
-      '</b>',
-
-      complete
-        ?
-        'ok'
-        :
-        'warn'
+      (complete ? '✅ ' : '🟡 ') +
+      '<b>' + escapeHtml(res.name) + '</b><br><br>' +
+      'Артикул: <b>' + escapeHtml(res.article) + '</b><br>' +
+      'Нужно: ' + res.expected + '<br>' +
+      'Принято: <b>' + res.accepted + '</b><br>' +
+      'Осталось: <b>' + res.remaining + '</b>',
+      complete ? 'ok' : 'warn'
     );
 
-
-    pendingBarcode =
-      '';
-
-
-    cooldownUntil =
-      Date.now() +
-      2800;
-
-
-    vibrate(
-      [80,60,80]
-    );
-
-
+    pendingBarcode = '';
+    cooldownUntil = Date.now() + 2800;
+    vibrate([80,60,80]);
     return;
   }
 
-
-  if (
-    res.type ===
-    'extra'
-  ) {
-
+  if (res.type === 'extra') {
     setStatus(
-
       '⚠️ <b>ЛИШНЯЯ ЕДИНИЦА</b><br><br>' +
-
-      escapeHtml(
-        res.name
-      ) +
-
+      escapeHtml(res.name) +
       '<br>Уже принято: ' +
       res.accepted +
       ' из ' +
       res.expected,
-
       'bad'
     );
 
-
-    pendingBarcode =
-      '';
-
-
-    cooldownUntil =
-      Date.now() +
-      3500;
-
-
+    pendingBarcode = '';
+    cooldownUntil = Date.now() + 3500;
     return;
   }
 
-
-  if (
-    res.type ===
-    'conflict'
-  ) {
-
+  if (res.type === 'conflict') {
     setStatus(
-
       '❌ Конфликт штрихкода.<br><br>' +
-
-      'Он уже привязан к ' +
-
-      '<b>' +
-      escapeHtml(
-        res.mappedArticle
-      ) +
+      'Он уже привязан к <b>' +
+      escapeHtml(res.mappedArticle) +
       '</b>',
-
       'bad'
     );
 
-
-    pendingBarcode =
-      '';
-
-
+    pendingBarcode = '';
     return;
   }
 
+  setStatus('❌ Товар не найден', 'bad');
+}
+
+function updateSummary(data) {
+  if (!data) return;
+
+  document.getElementById('accepted').textContent = data.accepted;
+  document.getElementById('expected').textContent = data.expected;
+  document.getElementById('remaining').textContent = data.remaining;
+}
+
+function setStatus(html, type) {
+  document.getElementById('statusCard').className = 'card ' + type;
+  document.getElementById('status').innerHTML = html;
+}
+
+function showError(error) {
+  serverBusy = false;
 
   setStatus(
-
-    '❌ Товар не найден',
-
-    'bad'
-  );
-}
-
-
-/* =========================
-   UI
-========================= */
-
-function updateSummary(
-  data
-) {
-
-  if (!data) {
-    return;
-  }
-
-
-  document
-    .getElementById(
-      'accepted'
-    )
-    .textContent =
-    data.accepted;
-
-
-  document
-    .getElementById(
-      'expected'
-    )
-    .textContent =
-    data.expected;
-
-
-  document
-    .getElementById(
-      'remaining'
-    )
-    .textContent =
-    data.remaining;
-}
-
-
-function setStatus(
-  html,
-  type
-) {
-
-  document
-    .getElementById(
-      'statusCard'
-    )
-    .className =
-    'card ' +
-    type;
-
-
-  document
-    .getElementById(
-      'status'
-    )
-    .innerHTML =
-    html;
-}
-
-
-function showError(
-  error
-) {
-
-  serverBusy =
-    false;
-
-
-  setStatus(
-
     '❌ ' +
     escapeHtml(
       error.message ||
       String(error)
     ),
-
     'bad'
   );
 }
 
-
-function escapeHtml(
-  value
-) {
-
-  return String(
-    value || ''
-  )
-    .replace(
-      /&/g,
-      '&amp;'
-    )
-    .replace(
-      /</g,
-      '&lt;'
-    )
-    .replace(
-      />/g,
-      '&gt;'
-    )
-    .replace(
-      /"/g,
-      '&quot;'
-    );
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
-
-function vibrate(
-  pattern
-) {
-
+function vibrate(pattern) {
   try {
-
-    navigator.vibrate(
-      pattern
-    );
-
+    navigator.vibrate(pattern);
   } catch(e) {}
 }
 
-
-/* =========================
-   AUTO LOGIN
-========================= */
-
 window.onload =
-  async function() {
+async function() {
+  if (!accessPin) return;
 
-    if (!accessPin) {
-      return;
-    }
+  document.getElementById('pin').value = accessPin;
 
-
-    document
-      .getElementById(
-        'pin'
-      )
-      .value =
-      accessPin;
-
-
-    try {
-
-      const response =
-        await api(
-          'init'
-        );
-
-
-      initApp(
-        response.data
-      );
-
-    }
-
-    catch(err) {
-
-      localStorage
-        .removeItem(
-          'warehousePin'
-        );
-
-
-      accessPin =
-        '';
-    }
-  };
+  try {
+    const response = await api('init');
+    initApp(response.data);
+  } catch(err) {
+    localStorage.removeItem('warehousePin');
+    accessPin = '';
+  }
+};
 
 </script>
-
-
 </body>
 </html>
