@@ -17,18 +17,46 @@ body{margin:0;background:#0f172a;color:#fff;font-family:Arial,sans-serif}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;gap:8px}
 .num{font-size:26px;font-weight:700}
 .label{font-size:12px;color:#cbd5e1}
-input{width:100%;border:0;border-radius:10px;padding:15px;font-size:18px}
-button{width:100%;border:0;border-radius:10px;padding:15px;font-size:17px;font-weight:700;margin-top:9px}
+input{
+  width:100%;border:0;border-radius:10px;padding:15px;font-size:18px;
+  background:#fff;color:#111827;outline:none
+}
+button{
+  width:100%;border:0;border-radius:10px;padding:15px;font-size:17px;
+  font-weight:700;margin-top:9px;cursor:pointer
+}
+button:disabled{opacity:.55;cursor:default}
 .blue{background:#2563eb;color:#fff}
 .gray{background:#475569;color:#fff}
+.green{background:#16a34a;color:#fff}
 .ok{background:#14532d;border:2px solid #22c55e}
 .warn{background:#78350f;border:2px solid #f59e0b}
 .bad{background:#7f1d1d;border:2px solid #ef4444}
 .search{background:#1e3a8a;border:2px solid #3b82f6}
 #reader{width:100%;background:#000;border-radius:12px;overflow:hidden}
 .status{min-height:85px;line-height:1.5}
-.hidden{display:none}
+.hidden{display:none!important}
 .small{font-size:12px;color:#cbd5e1;line-height:1.5}
+
+.manual-title{font-size:18px;font-weight:700;margin-bottom:8px}
+.manual-hint{font-size:13px;color:#cbd5e1;line-height:1.4;margin-bottom:10px}
+.suggestions{margin-top:8px;max-height:330px;overflow:auto}
+.suggestion{
+  background:#334155;border:1px solid #475569;border-radius:10px;
+  padding:12px;margin-top:7px;cursor:pointer
+}
+.suggestion:active{background:#475569}
+.suggestion-article{font-weight:700;font-size:17px}
+.suggestion-name{font-size:13px;color:#e2e8f0;margin-top:3px}
+.suggestion-rest{font-size:12px;color:#93c5fd;margin-top:4px}
+.selected{
+  border:2px solid #22c55e;
+  background:#14532d
+}
+.pending{
+  background:#78350f;border:1px solid #f59e0b;border-radius:10px;
+  padding:10px;margin-bottom:10px;font-size:13px;line-height:1.4
+}
 </style>
 </head>
 
@@ -67,7 +95,52 @@ button{width:100%;border:0;border-radius:10px;padding:15px;font-size:17px;font-w
 
   <div class="card">
     <button id="start" class="blue" onclick="startCamera()">📷 ЗАПУСТИТЬ КАМЕРУ</button>
-    <button id="ocrButton" class="gray hidden" onclick="runOcr(true)">🔍 РАСПОЗНАТЬ АРТИКУЛ СЕЙЧАС</button>
+
+    <button id="ocrButton" class="gray hidden" onclick="runOcr(true)">
+      🔍 РАСПОЗНАТЬ АРТИКУЛ СЕЙЧАС
+    </button>
+
+    <button class="gray" onclick="toggleManual()">
+      ✏️ ВВЕСТИ АРТИКУЛ ВРУЧНУЮ
+    </button>
+  </div>
+
+  <div id="manualCard" class="card hidden">
+    <div class="manual-title">✏️ Ручной поиск товара</div>
+
+    <div id="pendingManual" class="pending hidden"></div>
+
+    <div class="manual-hint">
+      Можно вводить только часть артикула или часть названия.
+      Например: <b>344</b>, <b>LN2111</b>, <b>KYB</b>, <b>Febest</b>.
+    </div>
+
+    <input
+      id="manualSearch"
+      type="text"
+      autocomplete="off"
+      autocapitalize="characters"
+      placeholder="Артикул или название"
+      oninput="renderManualSuggestions()"
+      onkeydown="manualKeyDown(event)"
+    >
+
+    <div id="manualSelected" class="small" style="margin-top:10px;"></div>
+
+    <div id="manualSuggestions" class="suggestions"></div>
+
+    <button
+      id="manualAcceptBtn"
+      class="green"
+      onclick="manualAccept()"
+      disabled
+    >
+      ПРИНЯТЬ +1
+    </button>
+
+    <button class="gray" onclick="closeManual()">
+      ЗАКРЫТЬ
+    </button>
   </div>
 
   <div id="camera" class="card hidden">
@@ -84,9 +157,10 @@ button{width:100%;border:0;border-radius:10px;padding:15px;font-size:17px;font-w
       <br>• штрихкод/EAN — через сканер кода;
       <br>• артикул — OCR по всему изображению.
       <br><br>
-      Артикул может находиться в любом месте упаковки.
-      Если сначала считался новый EAN, можно перевести камеру на другую сторону коробки,
-      где крупно напечатан артикул — система продолжит его искать и сама свяжет EAN → артикул.
+      Если артикул не читается, используй кнопку
+      <b>«Ввести артикул вручную»</b>.
+      Если перед этим уже считан неизвестный EAN, ручной выбор
+      автоматически запомнит связь EAN → артикул и сразу примет товар.
     </div>
   </div>
 
@@ -120,6 +194,9 @@ let lastArticleTime = 0;
 
 let ocrZoneIndex = 0;
 
+/* Выбранный вручную товар */
+let manualSelectedArticle = '';
+
 const OCR_ZONES = [
   {name:'весь кадр', x:0, y:0, w:1, h:1, scale:1.25},
   {name:'верх', x:0, y:0, w:1, h:.55, scale:1.7},
@@ -129,9 +206,16 @@ const OCR_ZONES = [
   {name:'правая часть', x:.38, y:0, w:.62, h:1, scale:1.6}
 ];
 
+
+/* =========================
+   API JSONP
+========================= */
+
 function api(action, params = {}) {
   return new Promise(function(resolve, reject) {
-    const callback = '__cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const callback =
+      '__cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+
     const script = document.createElement('script');
 
     const timeout = setTimeout(function() {
@@ -141,25 +225,43 @@ function api(action, params = {}) {
 
     function cleanup() {
       clearTimeout(timeout);
-      try { delete window[callback]; } catch(e) {}
-      if (script.parentNode) script.parentNode.removeChild(script);
+
+      try {
+        delete window[callback];
+      } catch(e) {}
+
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
     }
 
     window[callback] = function(data) {
       cleanup();
+
       if (data && data.ok) {
         resolve(data);
       } else {
-        reject(new Error(data && data.error ? data.error : 'Ошибка API'));
+        reject(
+          new Error(
+            data && data.error
+              ? data.error
+              : 'Ошибка API'
+          )
+        );
       }
     };
 
-    const query = new URLSearchParams(Object.assign({
-      action: action,
-      pin: accessPin,
-      callback: callback,
-      _: Date.now()
-    }, params));
+    const query = new URLSearchParams(
+      Object.assign(
+        {
+          action: action,
+          pin: accessPin,
+          callback: callback,
+          _: Date.now()
+        },
+        params
+      )
+    );
 
     script.src = API + '?' + query.toString();
 
@@ -172,16 +274,26 @@ function api(action, params = {}) {
   });
 }
 
+
+/* =========================
+   LOGIN / INIT
+========================= */
+
 async function login() {
-  const value = document.getElementById('pin').value.trim();
+  const value =
+    document.getElementById('pin').value.trim();
+
   if (!value) return;
 
   accessPin = value;
 
   try {
     const response = await api('init');
+
     localStorage.setItem('warehousePin', accessPin);
+
     initApp(response.data);
+
   } catch(err) {
     if (String(err.message).includes('BAD_PIN')) {
       alert('Неверный PIN');
@@ -191,19 +303,30 @@ async function login() {
   }
 }
 
+
 function initApp(data) {
   catalog = data.catalog || [];
-  document.getElementById('shipment').textContent = '📦 ' + data.shipmentName;
+
+  document.getElementById('shipment').textContent =
+    '📦 ' + data.shipmentName;
+
   updateSummary(data.summary);
+
   document.getElementById('login').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
 }
+
+
+/* =========================
+   CAMERA
+========================= */
 
 async function startCamera() {
   if (cameraStarted) return;
 
   try {
     setStatus('Запрашиваю камеру…', 'search');
+
     document.getElementById('camera').classList.remove('hidden');
 
     const formats = [
@@ -216,11 +339,16 @@ async function startCamera() {
       Html5QrcodeSupportedFormats.ITF
     ];
 
-    qr = new Html5Qrcode('reader', { formatsToSupport: formats });
+    qr = new Html5Qrcode(
+      'reader',
+      { formatsToSupport: formats }
+    );
 
     const cameras = await Html5Qrcode.getCameras();
 
-    if (!cameras || !cameras.length) throw new Error('Камера не найдена');
+    if (!cameras || !cameras.length) {
+      throw new Error('Камера не найдена');
+    }
 
     const back =
       cameras.find(function(cam) {
@@ -232,7 +360,10 @@ async function startCamera() {
       back.id,
       {
         fps: 12,
-        qrbox: { width: 310, height: 150 }
+        qrbox: {
+          width: 310,
+          height: 150
+        }
       },
       barcodeFound,
       function() {}
@@ -260,17 +391,29 @@ async function startCamera() {
   }
 }
 
+
+/* =========================
+   BARCODE
+========================= */
+
 async function barcodeFound(code) {
   const now = Date.now();
 
   if (now < cooldownUntil) return;
   if (serverBusy) return;
 
-  /* Пока ищем артикул для уже считанного EAN,
-     новые штрихкоды не принимаем. */
+  /*
+   * Пока ищем артикул для уже считанного EAN,
+   * новые штрихкоды не принимаем.
+   */
   if (pendingBarcode) return;
 
-  if (code === lastBarcode && now - lastBarcodeTime < 2500) return;
+  if (
+    code === lastBarcode &&
+    now - lastBarcodeTime < 2500
+  ) {
+    return;
+  }
 
   lastBarcode = code;
   lastBarcodeTime = now;
@@ -286,13 +429,24 @@ async function barcodeFound(code) {
   );
 
   try {
-    const response = await api('scan', { barcode: code });
+    const response =
+      await api(
+        'scan',
+        { barcode: code }
+      );
+
     handleResult(response.result);
+
   } catch(err) {
     serverBusy = false;
     showError(err);
   }
 }
+
+
+/* =========================
+   OCR INIT
+========================= */
 
 async function initOcr() {
   try {
@@ -301,7 +455,8 @@ async function initOcr() {
       'search'
     );
 
-    ocrWorker = await Tesseract.createWorker('eng');
+    ocrWorker =
+      await Tesseract.createWorker('eng');
 
     await ocrWorker.setParameters({
       tessedit_char_whitelist:
@@ -323,20 +478,36 @@ async function initOcr() {
 
   } catch(err) {
     setStatus(
-      '⚠️ OCR не загрузился, но штрихкоды можно сканировать.',
+      '⚠️ OCR не загрузился, но штрихкоды и ручной ввод продолжают работать.',
       'warn'
     );
   }
 }
 
+
+/* =========================
+   OCR FRAME
+========================= */
+
 function getVideo() {
-  const video = document.querySelector('#reader video');
-  if (!video || !video.videoWidth || !video.videoHeight) return null;
+  const video =
+    document.querySelector('#reader video');
+
+  if (
+    !video ||
+    !video.videoWidth ||
+    !video.videoHeight
+  ) {
+    return null;
+  }
+
   return video;
 }
 
+
 function getFrame(zone) {
   const video = getVideo();
+
   if (!video) return null;
 
   zone = zone || OCR_ZONES[0];
@@ -346,46 +517,101 @@ function getFrame(zone) {
   const sw = Math.round(video.videoWidth * zone.w);
   const sh = Math.round(video.videoHeight * zone.h);
 
-  const canvas = document.createElement('canvas');
+  const canvas =
+    document.createElement('canvas');
 
-  canvas.width = Math.max(1, Math.round(sw * zone.scale));
-  canvas.height = Math.max(1, Math.round(sh * zone.scale));
+  canvas.width =
+    Math.max(
+      1,
+      Math.round(sw * zone.scale)
+    );
 
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  canvas.height =
+    Math.max(
+      1,
+      Math.round(sh * zone.scale)
+    );
+
+  const ctx =
+    canvas.getContext(
+      '2d',
+      { willReadFrequently: true }
+    );
 
   ctx.drawImage(
     video,
     sx, sy, sw, sh,
-    0, 0, canvas.width, canvas.height
+    0, 0,
+    canvas.width,
+    canvas.height
   );
 
   try {
-    const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const image =
+      ctx.getImageData(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+
     const d = image.data;
 
-    for (let i = 0; i < d.length; i += 4) {
+    for (
+      let i = 0;
+      i < d.length;
+      i += 4
+    ) {
       const gray =
         d[i] * .299 +
         d[i + 1] * .587 +
         d[i + 2] * .114;
 
-      let value = (gray - 128) * 1.3 + 128;
-      value = Math.max(0, Math.min(255, value));
+      let value =
+        (gray - 128) * 1.3 + 128;
+
+      value =
+        Math.max(
+          0,
+          Math.min(255, value)
+        );
 
       d[i] = value;
       d[i + 1] = value;
       d[i + 2] = value;
     }
 
-    ctx.putImageData(image, 0, 0);
+    ctx.putImageData(
+      image,
+      0,
+      0
+    );
+
   } catch(e) {}
 
   return canvas;
 }
 
+
+/* =========================
+   OCR
+========================= */
+
 async function runOcr(forced) {
-  if (!ocrReady || ocrBusy || serverBusy) return;
-  if (!forced && Date.now() < cooldownUntil) return;
+  if (
+    !ocrReady ||
+    ocrBusy ||
+    serverBusy
+  ) {
+    return;
+  }
+
+  if (
+    !forced &&
+    Date.now() < cooldownUntil
+  ) {
+    return;
+  }
 
   ocrBusy = true;
 
@@ -395,41 +621,65 @@ async function runOcr(forced) {
     if (forced) {
       zones = OCR_ZONES;
     } else {
-      zones = [OCR_ZONES[ocrZoneIndex % OCR_ZONES.length]];
-      ocrZoneIndex = (ocrZoneIndex + 1) % OCR_ZONES.length;
+      zones = [
+        OCR_ZONES[
+          ocrZoneIndex %
+          OCR_ZONES.length
+        ]
+      ];
+
+      ocrZoneIndex =
+        (ocrZoneIndex + 1) %
+        OCR_ZONES.length;
     }
 
     let match = null;
     let foundZone = '';
 
-    for (let i = 0; i < zones.length; i++) {
+    for (
+      let i = 0;
+      i < zones.length;
+      i++
+    ) {
       const zone = zones[i];
-      const frame = getFrame(zone);
+
+      const frame =
+        getFrame(zone);
 
       if (!frame) continue;
 
-      if (pendingBarcode && forced) {
+      if (
+        pendingBarcode &&
+        forced
+      ) {
         setStatus(
           '📦 Штрихкод уже считан.<br><br>' +
           '🔍 Ищу артикул по всей упаковке…<br>' +
-          '<span style="font-size:12px">Проверяю: ' +
+          '<span style="font-size:12px">' +
+          'Проверяю: ' +
           escapeHtml(zone.name) +
-          '. Можно перевести камеру с штрихкода на другое место коробки.</span>',
+          '. Можно перевести камеру с штрихкода на другое место коробки.' +
+          '</span>',
           'search'
         );
       }
 
-      const result = await ocrWorker.recognize(frame);
+      const result =
+        await ocrWorker.recognize(frame);
 
       const text =
-        result && result.data
+        result &&
+        result.data
           ? (result.data.text || '')
           : '';
 
-      match = findArticle(text);
+      match =
+        findArticle(text);
 
       if (match) {
-        foundZone = zone.name;
+        foundZone =
+          zone.name;
+
         break;
       }
     }
@@ -441,14 +691,18 @@ async function runOcr(forced) {
             ?
             '📦 Штрихкод сохранён.<br><br>' +
             'Артикул пока не найден.<br><br>' +
-            '➡️ Переведи камеру на любую часть коробки, где крупно написан артикул. ' +
-            'Он не обязан находиться рядом со штрихкодом.<br><br>' +
-            'OCR продолжит автоматически проверять весь кадр.'
+            'Можно продолжить камерой или нажать <b>«Ввести артикул вручную»</b>.'
             :
             '🔍 Артикул пока не найден.<br><br>' +
-            'Наведи камеру именно на место упаковки, где крупно написан артикул.',
+            'Наведи камеру на место с артикулом или используй ручной ввод.',
           'warn'
         );
+
+        /*
+         * Если автоматический поиск не помог —
+         * сразу раскрываем ручной резерв.
+         */
+        openManual();
       }
 
       return;
@@ -463,55 +717,79 @@ async function runOcr(forced) {
       return;
     }
 
-    lastArticle = match.article;
-    lastArticleTime = now;
+    lastArticle =
+      match.article;
+
+    lastArticleTime =
+      now;
+
     serverBusy = true;
 
     setStatus(
       '🔍 Найден артикул:<br>' +
-      '<b>' + escapeHtml(match.article) + '</b><br>' +
+      '<b>' +
+      escapeHtml(match.article) +
+      '</b><br>' +
       escapeHtml(match.name) +
       '<br><br>' +
-      '<span style="font-size:12px">Распознан в зоне: ' +
+      '<span style="font-size:12px">' +
+      'Распознан в зоне: ' +
       escapeHtml(foundZone) +
-      '</span><br>Проверяю количество…',
+      '</span><br>' +
+      'Проверяю количество…',
       'search'
     );
 
     let response;
 
     if (pendingBarcode) {
-      response = await api(
-        'bind',
-        {
-          barcode: pendingBarcode,
-          article: match.article
-        }
-      );
+      response =
+        await api(
+          'bind',
+          {
+            barcode:
+              pendingBarcode,
+
+            article:
+              match.article
+          }
+        );
+
     } else {
-      response = await api(
-        'ocr',
-        {
-          article: match.article
-        }
-      );
+      response =
+        await api(
+          'ocr',
+          {
+            article:
+              match.article
+          }
+        );
     }
 
-    handleResult(response.result);
+    handleResult(
+      response.result
+    );
 
   } catch(err) {
     serverBusy = false;
     showError(err);
+
   } finally {
     ocrBusy = false;
   }
 }
+
+
+/* =========================
+   OCR MATCH
+========================= */
 
 function normalize(value) {
   return String(value || '')
     .toUpperCase()
     .replace(/[^A-ZА-Я0-9]/g, '');
 }
+
 
 function getCandidates(text) {
   const parts =
@@ -522,111 +800,787 @@ function getCandidates(text) {
       .map(normalize)
       .filter(Boolean);
 
-  const set = new Set();
+  const set =
+    new Set();
 
-  for (let i = 0; i < parts.length; i++) {
-    for (let count = 1; count <= 4; count++) {
-      if (i + count > parts.length) break;
+  for (
+    let i = 0;
+    i < parts.length;
+    i++
+  ) {
+    for (
+      let count = 1;
+      count <= 4;
+      count++
+    ) {
+      if (
+        i + count >
+        parts.length
+      ) {
+        break;
+      }
 
       const value =
         parts
-          .slice(i, i + count)
+          .slice(
+            i,
+            i + count
+          )
           .join('');
 
-      if (value.length >= 3) set.add(value);
+      if (
+        value.length >= 3
+      ) {
+        set.add(value);
+      }
     }
   }
 
   return [...set];
 }
 
+
 function findArticle(text) {
-  const full = normalize(text);
-  const candidates = getCandidates(text);
+  const full =
+    normalize(text);
+
+  const candidates =
+    getCandidates(text);
+
   const matches = [];
 
-  catalog.forEach(function(item) {
-    const article = normalize(item.article);
+  catalog.forEach(
+    function(item) {
+      const article =
+        normalize(item.article);
 
-    if (!article) return;
+      if (!article) return;
 
-    const numeric = /^\d+$/.test(article);
+      const numeric =
+        /^\d+$/.test(article);
 
-    let found = false;
+      let found = false;
 
-    if (numeric && article.length <= 6) {
-      found = candidates.includes(article);
-    } else {
-      found =
-        full.includes(article)
-        ||
-        candidates.includes(article);
+      if (
+        numeric &&
+        article.length <= 6
+      ) {
+        found =
+          candidates.includes(article);
+
+      } else {
+        found =
+          full.includes(article)
+          ||
+          candidates.includes(article);
+      }
+
+      if (found) {
+        matches.push({
+          article:
+            item.article,
+
+          name:
+            item.name,
+
+          length:
+            article.length
+        });
+      }
     }
+  );
 
-    if (found) {
-      matches.push({
-        article: item.article,
-        name: item.name,
-        length: article.length
-      });
+  if (!matches.length) {
+    return null;
+  }
+
+  matches.sort(
+    function(a, b) {
+      return (
+        b.length -
+        a.length
+      );
     }
-  });
-
-  if (!matches.length) return null;
-
-  matches.sort(function(a, b) {
-    return b.length - a.length;
-  });
+  );
 
   return matches[0];
 }
 
+
+/* =========================
+   MANUAL INPUT
+========================= */
+
+function toggleManual() {
+  const card =
+    document.getElementById(
+      'manualCard'
+    );
+
+  if (
+    card.classList.contains(
+      'hidden'
+    )
+  ) {
+    openManual();
+  } else {
+    closeManual();
+  }
+}
+
+
+function openManual() {
+  const card =
+    document.getElementById(
+      'manualCard'
+    );
+
+  card.classList.remove(
+    'hidden'
+  );
+
+  manualSelectedArticle = '';
+
+  document.getElementById(
+    'manualSelected'
+  ).innerHTML = '';
+
+  document.getElementById(
+    'manualAcceptBtn'
+  ).disabled = true;
+
+  const pending =
+    document.getElementById(
+      'pendingManual'
+    );
+
+  if (pendingBarcode) {
+    pending.classList.remove(
+      'hidden'
+    );
+
+    pending.innerHTML =
+      '📦 Уже считан неизвестный штрихкод:<br><b>' +
+      escapeHtml(
+        pendingBarcode
+      ) +
+      '</b><br><br>' +
+      'Выбери товар — система <b>запомнит связь EAN → артикул</b> и сразу примет +1.';
+  } else {
+    pending.classList.add(
+      'hidden'
+    );
+
+    pending.innerHTML = '';
+  }
+
+  renderManualSuggestions();
+
+  setTimeout(function() {
+    document.getElementById(
+      'manualSearch'
+    ).focus();
+  }, 100);
+}
+
+
+function closeManual() {
+  document.getElementById(
+    'manualCard'
+  ).classList.add(
+    'hidden'
+  );
+
+  manualSelectedArticle = '';
+
+  document.getElementById(
+    'manualSearch'
+  ).value = '';
+
+  document.getElementById(
+    'manualSuggestions'
+  ).innerHTML = '';
+
+  document.getElementById(
+    'manualSelected'
+  ).innerHTML = '';
+
+  document.getElementById(
+    'manualAcceptBtn'
+  ).disabled = true;
+}
+
+
+function manualSearchMatches() {
+  const queryRaw =
+    document.getElementById(
+      'manualSearch'
+    ).value.trim();
+
+  const query =
+    normalize(queryRaw);
+
+  /*
+   * Если строка пустая —
+   * показываем только незакрытые позиции.
+   */
+  let list =
+    catalog.filter(
+      function(item) {
+        return (
+          Number(item.accepted || 0) <
+          Number(item.expected || 0)
+        );
+      }
+    );
+
+  if (query) {
+    list =
+      list.filter(
+        function(item) {
+          const article =
+            normalize(item.article);
+
+          const name =
+            normalize(item.name);
+
+          return (
+            article.includes(query)
+            ||
+            name.includes(query)
+          );
+        }
+      );
+
+    /*
+     * Лучшие совпадения вверх:
+     * точный артикул -> начинается с запроса -> прочие.
+     */
+    list.sort(
+      function(a, b) {
+        const aa =
+          normalize(a.article);
+
+        const bb =
+          normalize(b.article);
+
+        const scoreA =
+          aa === query
+            ? 0
+            : aa.startsWith(query)
+              ? 1
+              : 2;
+
+        const scoreB =
+          bb === query
+            ? 0
+            : bb.startsWith(query)
+              ? 1
+              : 2;
+
+        if (scoreA !== scoreB) {
+          return scoreA - scoreB;
+        }
+
+        return aa.localeCompare(bb);
+      }
+    );
+  }
+
+  return list.slice(0, 12);
+}
+
+
+function renderManualSuggestions() {
+  manualSelectedArticle = '';
+
+  document.getElementById(
+    'manualAcceptBtn'
+  ).disabled = true;
+
+  document.getElementById(
+    'manualSelected'
+  ).innerHTML = '';
+
+  const box =
+    document.getElementById(
+      'manualSuggestions'
+    );
+
+  box.innerHTML = '';
+
+  const matches =
+    manualSearchMatches();
+
+  if (!matches.length) {
+    box.innerHTML =
+      '<div class="small" style="padding:10px 2px;">Ничего не найдено в текущей поставке.</div>';
+
+    return;
+  }
+
+  matches.forEach(
+    function(item) {
+      const expected =
+        Number(item.expected || 0);
+
+      const accepted =
+        Number(item.accepted || 0);
+
+      const remaining =
+        Math.max(
+          expected - accepted,
+          0
+        );
+
+      const div =
+        document.createElement(
+          'div'
+        );
+
+      div.className =
+        'suggestion';
+
+      div.dataset.article =
+        item.article;
+
+      div.innerHTML =
+        '<div class="suggestion-article">' +
+        escapeHtml(item.article) +
+        '</div>' +
+        '<div class="suggestion-name">' +
+        escapeHtml(item.name) +
+        '</div>' +
+        '<div class="suggestion-rest">' +
+        'Ожидается: ' +
+        expected +
+        ' • принято: ' +
+        accepted +
+        ' • осталось: ' +
+        remaining +
+        '</div>';
+
+      div.onclick =
+        function() {
+          selectManualItem(
+            item.article
+          );
+        };
+
+      box.appendChild(
+        div
+      );
+    }
+  );
+}
+
+
+function selectManualItem(article) {
+  const item =
+    catalog.find(
+      function(x) {
+        return (
+          normalize(x.article) ===
+          normalize(article)
+        );
+      }
+    );
+
+  if (!item) return;
+
+  manualSelectedArticle =
+    item.article;
+
+  /*
+   * Подставляем именно артикул,
+   * чтобы сотрудник видел,
+   * что выбрано.
+   */
+  document.getElementById(
+    'manualSearch'
+  ).value =
+    item.article;
+
+  document.getElementById(
+    'manualSelected'
+  ).innerHTML =
+    'Выбрано: <b>' +
+    escapeHtml(item.name) +
+    '</b>';
+
+  document.getElementById(
+    'manualAcceptBtn'
+  ).disabled = false;
+
+  document.querySelectorAll(
+    '.suggestion'
+  ).forEach(
+    function(el) {
+      el.classList.toggle(
+        'selected',
+        normalize(
+          el.dataset.article
+        ) ===
+        normalize(
+          item.article
+        )
+      );
+    }
+  );
+}
+
+
+function manualKeyDown(event) {
+  if (
+    event.key !==
+    'Enter'
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+
+  /*
+   * Если введён точный артикул —
+   * выбираем его автоматически.
+   */
+  const value =
+    normalize(
+      document.getElementById(
+        'manualSearch'
+      ).value
+    );
+
+  const exact =
+    catalog.find(
+      function(item) {
+        return (
+          normalize(
+            item.article
+          ) === value
+        );
+      }
+    );
+
+  if (exact) {
+    selectManualItem(
+      exact.article
+    );
+
+    manualAccept();
+
+    return;
+  }
+
+  /*
+   * Если результат ровно один —
+   * Enter тоже может его выбрать.
+   */
+  const matches =
+    manualSearchMatches();
+
+  if (
+    matches.length === 1
+  ) {
+    selectManualItem(
+      matches[0].article
+    );
+
+    manualAccept();
+  }
+}
+
+
+async function manualAccept() {
+  if (
+    !manualSelectedArticle
+  ) {
+    /*
+     * Пользователь мог ввести точный артикул
+     * и не нажать на подсказку.
+     */
+    const entered =
+      normalize(
+        document.getElementById(
+          'manualSearch'
+        ).value
+      );
+
+    const exact =
+      catalog.find(
+        function(item) {
+          return (
+            normalize(
+              item.article
+            ) === entered
+          );
+        }
+      );
+
+    if (exact) {
+      manualSelectedArticle =
+        exact.article;
+    }
+  }
+
+  if (
+    !manualSelectedArticle
+  ) {
+    alert(
+      'Выбери товар из подсказок.'
+    );
+
+    return;
+  }
+
+  if (serverBusy) {
+    return;
+  }
+
+  serverBusy = true;
+
+  document.getElementById(
+    'manualAcceptBtn'
+  ).disabled = true;
+
+  setStatus(
+    '✏️ Ручной выбор:<br><b>' +
+    escapeHtml(
+      manualSelectedArticle
+    ) +
+    '</b><br><br>Проверяю количество…',
+    'search'
+  );
+
+  try {
+    let response;
+
+    if (pendingBarcode) {
+      /*
+       * Был неизвестный EAN:
+       * связываем его с выбранным артикулом
+       * и сразу принимаем +1.
+       */
+      response =
+        await api(
+          'bind',
+          {
+            barcode:
+              pendingBarcode,
+
+            article:
+              manualSelectedArticle
+          }
+        );
+
+    } else {
+      /*
+       * EAN нет — просто принимаем
+       * по выбранному артикулу.
+       */
+      response =
+        await api(
+          'ocr',
+          {
+            article:
+              manualSelectedArticle
+          }
+        );
+    }
+
+    handleResult(
+      response.result
+    );
+
+    /*
+     * При успешной обработке закрываем
+     * ручное окно. Если товар лишний,
+     * результат всё равно будет виден
+     * в основном статусе.
+     */
+    closeManual();
+
+  } catch(err) {
+    serverBusy = false;
+
+    document.getElementById(
+      'manualAcceptBtn'
+    ).disabled = false;
+
+    showError(err);
+  }
+}
+
+
+/* =========================
+   RESULT
+========================= */
+
+function updateCatalogFromResult(res) {
+  if (
+    !res ||
+    !res.article ||
+    typeof res.accepted ===
+      'undefined'
+  ) {
+    return;
+  }
+
+  const item =
+    catalog.find(
+      function(x) {
+        return (
+          normalize(
+            x.article
+          ) ===
+          normalize(
+            res.article
+          )
+        );
+      }
+    );
+
+  if (!item) return;
+
+  item.accepted =
+    Number(res.accepted || 0);
+
+  if (
+    typeof res.expected !==
+      'undefined'
+  ) {
+    item.expected =
+      Number(res.expected || 0);
+  }
+}
+
+
 function handleResult(res) {
   serverBusy = false;
 
-  if (res.summary) updateSummary(res.summary);
+  if (!res) return;
 
-  if (res.type === 'unknown') {
-    pendingBarcode = res.barcode;
+  if (res.summary) {
+    updateSummary(
+      res.summary
+    );
+  }
+
+  updateCatalogFromResult(
+    res
+  );
+
+  if (
+    res.type ===
+    'unknown'
+  ) {
+    pendingBarcode =
+      res.barcode;
+
+    /*
+     * Если ручное окно уже открыто,
+     * обновим подсказку про EAN.
+     */
+    if (
+      !document
+        .getElementById(
+          'manualCard'
+        )
+        .classList
+        .contains(
+          'hidden'
+        )
+    ) {
+      openManual();
+    }
 
     setStatus(
       '📦 Штрихкод считан:<br>' +
-      '<b>' + escapeHtml(res.barcode) + '</b><br><br>' +
+      '<b>' +
+      escapeHtml(
+        res.barcode
+      ) +
+      '</b><br><br>' +
       'Теперь ищу артикул по всей упаковке.<br>' +
-      'Можно перевести камеру на другую сторону коробки.',
+      'Если надпись не читается — нажми <b>«Ввести артикул вручную»</b>.',
       'warn'
     );
 
-    setTimeout(function() {
-      runOcr(true);
-    }, 100);
+    setTimeout(
+      function() {
+        runOcr(true);
+      },
+      100
+    );
 
     return;
   }
 
-  if (res.type === 'complete' || res.type === 'partial') {
-    const complete = res.type === 'complete';
+
+  if (
+    res.type ===
+      'complete'
+    ||
+    res.type ===
+      'partial'
+  ) {
+    const complete =
+      res.type ===
+      'complete';
 
     setStatus(
-      (complete ? '✅ ' : '🟡 ') +
-      '<b>' + escapeHtml(res.name) + '</b><br><br>' +
-      'Артикул: <b>' + escapeHtml(res.article) + '</b><br>' +
-      'Нужно: ' + res.expected + '<br>' +
-      'Принято: <b>' + res.accepted + '</b><br>' +
-      'Осталось: <b>' + res.remaining + '</b>',
-      complete ? 'ok' : 'warn'
+      (
+        complete
+          ? '✅ '
+          : '🟡 '
+      ) +
+      '<b>' +
+      escapeHtml(
+        res.name
+      ) +
+      '</b><br><br>' +
+      'Артикул: <b>' +
+      escapeHtml(
+        res.article
+      ) +
+      '</b><br>' +
+      'Нужно: ' +
+      res.expected +
+      '<br>' +
+      'Принято: <b>' +
+      res.accepted +
+      '</b><br>' +
+      'Осталось: <b>' +
+      res.remaining +
+      '</b>',
+      complete
+        ? 'ok'
+        : 'warn'
     );
 
     pendingBarcode = '';
-    cooldownUntil = Date.now() + 2800;
-    vibrate([80,60,80]);
+
+    cooldownUntil =
+      Date.now() +
+      2800;
+
+    vibrate(
+      [80,60,80]
+    );
+
     return;
   }
 
-  if (res.type === 'extra') {
+
+  if (
+    res.type ===
+    'extra'
+  ) {
     setStatus(
       '⚠️ <b>ЛИШНЯЯ ЕДИНИЦА</b><br><br>' +
-      escapeHtml(res.name) +
+      escapeHtml(
+        res.name
+      ) +
       '<br>Уже принято: ' +
       res.accepted +
       ' из ' +
@@ -635,38 +1589,103 @@ function handleResult(res) {
     );
 
     pendingBarcode = '';
-    cooldownUntil = Date.now() + 3500;
+
+    cooldownUntil =
+      Date.now() +
+      3500;
+
     return;
   }
 
-  if (res.type === 'conflict') {
+
+  if (
+    res.type ===
+    'conflict'
+  ) {
     setStatus(
       '❌ Конфликт штрихкода.<br><br>' +
       'Он уже привязан к <b>' +
-      escapeHtml(res.mappedArticle) +
+      escapeHtml(
+        res.mappedArticle
+      ) +
       '</b>',
       'bad'
     );
 
     pendingBarcode = '';
+
     return;
   }
 
-  setStatus('❌ Товар не найден', 'bad');
+
+  if (
+    res.type ===
+    'not_found'
+  ) {
+    setStatus(
+      '❌ Товар отсутствует в текущей поставке.<br><br>' +
+      'Артикул: <b>' +
+      escapeHtml(
+        res.article || ''
+      ) +
+      '</b>',
+      'bad'
+    );
+
+    return;
+  }
+
+
+  setStatus(
+    '❌ ' +
+    escapeHtml(
+      res.message ||
+      'Товар не найден'
+    ),
+    'bad'
+  );
 }
+
+
+/* =========================
+   UI
+========================= */
 
 function updateSummary(data) {
   if (!data) return;
 
-  document.getElementById('accepted').textContent = data.accepted;
-  document.getElementById('expected').textContent = data.expected;
-  document.getElementById('remaining').textContent = data.remaining;
+  document.getElementById(
+    'accepted'
+  ).textContent =
+    data.accepted;
+
+  document.getElementById(
+    'expected'
+  ).textContent =
+    data.expected;
+
+  document.getElementById(
+    'remaining'
+  ).textContent =
+    data.remaining;
 }
 
-function setStatus(html, type) {
-  document.getElementById('statusCard').className = 'card ' + type;
-  document.getElementById('status').innerHTML = html;
+
+function setStatus(
+  html,
+  type
+) {
+  document.getElementById(
+    'statusCard'
+  ).className =
+    'card ' + type;
+
+  document.getElementById(
+    'status'
+  ).innerHTML =
+    html;
 }
+
 
 function showError(error) {
   serverBusy = false;
@@ -681,31 +1700,52 @@ function showError(error) {
   );
 }
 
+
 function escapeHtml(value) {
   return String(value || '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
+
 
 function vibrate(pattern) {
   try {
-    navigator.vibrate(pattern);
+    navigator.vibrate(
+      pattern
+    );
   } catch(e) {}
 }
+
+
+/* =========================
+   AUTO LOGIN
+========================= */
 
 window.onload =
 async function() {
   if (!accessPin) return;
 
-  document.getElementById('pin').value = accessPin;
+  document.getElementById(
+    'pin'
+  ).value =
+    accessPin;
 
   try {
-    const response = await api('init');
-    initApp(response.data);
+    const response =
+      await api('init');
+
+    initApp(
+      response.data
+    );
+
   } catch(err) {
-    localStorage.removeItem('warehousePin');
+    localStorage.removeItem(
+      'warehousePin'
+    );
+
     accessPin = '';
   }
 };
