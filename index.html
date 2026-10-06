@@ -426,6 +426,13 @@ async function selectBatch() {
         ? response.data.catalog
         : [];
 
+    /*
+     * Готовим СТРОГИЙ список артикулов.
+     * Название/описание товара больше не является
+     * основанием для автоматического принятия.
+     */
+    prepareArticleCatalog();
+
     const batch =
       response.data.batch;
 
@@ -1263,35 +1270,342 @@ function makeCandidates(text) {
 }
 
 
-function brandBonus(item, text) {
-  const nameParts =
-    tokens(item.name);
+/*
+ * Строгие артикулы, извлечённые из наименования товара.
+ *
+ * ВАЖНО:
+ * автоматическое принятие теперь возможно ТОЛЬКО
+ * при совпадении с артикулом.
+ *
+ * Название, бренд, слова "колодки", "фильтр" и т.п.
+ * сами по себе товар НЕ принимают.
+ */
+let articleOwnerMap = {};
 
-  if (!nameParts.length) {
-    return 0;
+
+function prepareArticleCatalog() {
+  articleOwnerMap = {};
+
+  catalog.forEach(function(item) {
+    item.articleAliases =
+      extractArticleAliases(
+        item.name
+      );
+
+    item.articleAliases
+      .forEach(function(alias) {
+        const a =
+          normalize(alias);
+
+        if (!a) return;
+
+        if (!articleOwnerMap[a]) {
+          articleOwnerMap[a] =
+            new Set();
+        }
+
+        articleOwnerMap[a]
+          .add(
+            item.productKey
+          );
+      });
+  });
+}
+
+
+function cleanSourceToken(value) {
+  return String(value || '')
+    .replace(/^[\(\[\{]+/, '')
+    .replace(/[\)\]\},;:]+$/, '');
+}
+
+
+function isAllCapsCodeToken(raw) {
+  const t =
+    cleanSourceToken(raw);
+
+  /*
+   * Чисто буквенный артикул допускаем,
+   * если в таблице он действительно написан
+   * как код заглавными буквами.
+   */
+  return (
+    /^[A-ZА-ЯЁ]{2,16}$/.test(t) &&
+    t === t.toUpperCase()
+  );
+}
+
+
+function isCodeToken(raw) {
+  const t =
+    cleanSourceToken(raw);
+
+  if (!t) return false;
+
+  return (
+    /\d/.test(t) ||
+    /[-\/_.+]/.test(t)
+  );
+}
+
+
+function isCodeContinuation(raw) {
+  const t =
+    cleanSourceToken(raw);
+
+  if (!t) return false;
+
+  if (
+    /\d/.test(t) ||
+    /[-\/_.+]/.test(t)
+  ) {
+    return true;
   }
 
-  const brand =
+  /*
+   * Суффиксы вроде KIT / SA / WK / L / R,
+   * если они отделены пробелом.
+   */
+  return (
+    /^[A-Z]{1,6}$/.test(t) &&
+    t === t.toUpperCase()
+  );
+}
+
+
+function extractArticleAliases(name) {
+  const source =
+    String(name || '')
+      .trim();
+
+  const set =
+    new Set();
+
+  const stopPure =
+    new Set([
+      'GROUP',
+      'AUTO',
+      'PART',
+      'PARTS',
+      'SET',
+      'CLEAN',
+      'NEW',
+      'ORIGINAL',
+      'LEFT',
+      'RIGHT'
+    ]);
+
+
+  function add(value) {
+    const n =
+      normalize(value);
+
+    if (
+      n.length >= 2 &&
+      n.length <= 40
+    ) {
+      set.add(n);
+    }
+  }
+
+
+  /*
+   * 1. Явно записанный артикул:
+   * "старый арт. CKT-11"
+   * "старый арт CRN-74"
+   */
+  const explicit =
+    source.match(
+      /(?:стар(?:ый|ого)?\s+)?арт\.?\s*[:№#-]?\s*([A-Za-zА-ЯЁ0-9][A-Za-zА-ЯЁ0-9\-./_+]*)/i
+    );
+
+  if (explicit) {
+    add(
+      explicit[1]
+    );
+  }
+
+
+  const rawTokens =
+    source
+      .split(/\s+/)
+      .map(cleanSourceToken)
+      .filter(Boolean);
+
+
+  /*
+   * 2. Стандартная строка:
+   *
+   * WINKOD W338738SA
+   * MEYLE 314 800 9005
+   * JP GROUP 1113600200
+   * 555 SB-6192
+   *
+   * Код должен находиться в правой части наименования.
+   * Если после него идёт обычное описание товара,
+   * такой фрагмент не считаем артикулом.
+   */
+  let codeStart =
+    -1;
+
+  for (
+    let i = 1;
+    i < rawTokens.length;
+    i++
+  ) {
+    if (
+      isCodeToken(
+        rawTokens[i]
+      )
+    ) {
+      codeStart =
+        i;
+
+      break;
+    }
+  }
+
+  if (
+    codeStart >= 1 &&
+    codeStart <= 2
+  ) {
+    let codeEnd =
+      codeStart;
+
+    while (
+      codeEnd + 1 <
+        rawTokens.length &&
+      isCodeContinuation(
+        rawTokens[
+          codeEnd + 1
+        ]
+      )
+    ) {
+      codeEnd++;
+    }
+
+    /*
+     * Артикул должен занимать хвост строки.
+     * Это специально отсекает:
+     * "OSRAM 12V (4W) Лампа стандарт..."
+     * и другие характеристики внутри описаний.
+     */
+    if (
+      codeEnd ===
+      rawTokens.length - 1
+    ) {
+      const combined =
+        rawTokens
+          .slice(
+            codeStart,
+            codeEnd + 1
+          )
+          .join('');
+
+      add(
+        combined
+      );
+    }
+  }
+
+
+  /*
+   * 3. Чисто буквенный артикул:
+   * BRAND ABC
+   *
+   * Берём только последнюю часть короткого
+   * наименования и только если она выглядит
+   * именно как код заглавными буквами.
+   */
+  if (
+    rawTokens.length >= 2 &&
+    rawTokens.length <= 3
+  ) {
+    const last =
+      rawTokens[
+        rawTokens.length - 1
+      ];
+
+    const normalizedLast =
+      normalize(last);
+
+    if (
+      isAllCapsCodeToken(last) &&
+      !stopPure.has(
+        normalizedLast
+      )
+    ) {
+      add(
+        last
+      );
+    }
+  }
+
+
+  return [
+    ...set
+  ];
+}
+
+
+function brandPresent(
+  item,
+  text
+) {
+  const nameParts =
+    tokens(
+      item.name
+    );
+
+  if (!nameParts.length) {
+    return false;
+  }
+
+  const ocrParts =
+    new Set(
+      tokens(text)
+        .map(normalize)
+    );
+
+  /*
+   * Первый токен — основной бренд.
+   * Для JP GROUP / JS ASAKASHI достаточно
+   * присутствия любого из первых двух слов.
+   */
+  const first =
     normalize(
       nameParts[0]
     );
 
-  const ocrParts =
-    tokens(text)
-      .map(normalize);
+  const second =
+    nameParts.length > 1
+      ? normalize(
+          nameParts[1]
+        )
+      : '';
 
   if (
-    brand.length >= 3 &&
-    ocrParts.includes(brand)
+    first.length >= 3 &&
+    ocrParts.has(first)
   ) {
-    return .045;
+    return true;
   }
 
-  return 0;
+  if (
+    second.length >= 4 &&
+    /^[A-ZА-Я0-9]+$/.test(
+      second
+    ) &&
+    ocrParts.has(second)
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 
-function scoreAlias(
+function scoreArticleAlias(
   aliasRaw,
   candidateRaw
 ) {
@@ -1312,32 +1626,40 @@ function scoreAlias(
     return 0;
   }
 
+
+  /*
+   * Точное совпадение — главный вариант.
+   */
   if (
     candidate ===
     alias
   ) {
-    if (alias.length >= 8) return 1;
-    if (alias.length >= 6) return .99;
-    if (alias.length >= 4) return .965;
-    return .88;
+    return 1;
   }
 
+
+  /*
+   * OCR может приклеить к артикулу служебное слово:
+   * PARTNOCKT11
+   */
   if (
-    alias.length >= 4 &&
-    candidate.includes(alias)
+    alias.length >= 5 &&
+    candidate.includes(
+      alias
+    )
   ) {
     const excess =
       candidate.length -
       alias.length;
 
-    if (excess <= 22) {
-      return (
-        alias.length >= 7
-          ? .97
-          : .92
-      );
+    if (
+      excess >= 0 &&
+      excess <= 12
+    ) {
+      return .985;
     }
   }
+
 
   const mixed =
     hasDigit(alias) ||
@@ -1345,41 +1667,55 @@ function scoreAlias(
 
   const a =
     mixed
-      ? canonicalMixed(alias)
+      ? canonicalMixed(
+          alias
+        )
       : alias;
 
   const b =
     mixed
-      ? canonicalMixed(candidate)
+      ? canonicalMixed(
+          candidate
+        )
       : candidate;
 
-  if (a === b) {
-    return (
-      alias.length >= 6
-        ? .985
-        : .94
-    );
-  }
 
   /*
-   * На полной этикетке много случайных коротких чисел.
-   * Чисто цифровой артикул < 6 знаков по fuzzy не угадываем.
+   * Типичные ошибки OCR:
+   * O/0, I/1, S/5, B/8...
    */
   if (
-    /^\d+$/.test(alias) &&
-    /^\d+$/.test(candidate) &&
-    alias.length < 6
+    a === b
+  ) {
+    return .99;
+  }
+
+
+  /*
+   * Короткие цифровые артикулы не угадываем.
+   * Для них нужно точное чтение.
+   */
+  if (
+    /^\d+$/.test(
+      alias
+    ) &&
+    alias.length <= 5
   ) {
     return 0;
   }
 
+
+  /*
+   * Нечёткое сравнение допускается только
+   * для достаточно длинного артикула.
+   */
   if (
-    alias.length >= 5 &&
-    candidate.length >= 5 &&
+    alias.length >= 6 &&
+    candidate.length >= 6 &&
     Math.abs(
       a.length -
       b.length
-    ) <= 3
+    ) <= 2
   ) {
     const dist =
       levenshtein(
@@ -1387,137 +1723,33 @@ function scoreAlias(
         b
       );
 
-    let maxEdits = 1;
-
-    if (
+    const maxEdits =
       Math.max(
         a.length,
         b.length
       ) >= 10
-    ) {
-      maxEdits = 2;
-    }
-
-    if (
-      Math.max(
-        a.length,
-        b.length
-      ) >= 16
-    ) {
-      maxEdits = 3;
-    }
+        ? 2
+        : 1;
 
     if (
       dist <=
       maxEdits
     ) {
-      return (
+      const similarity =
         1 -
         dist /
         Math.max(
           a.length,
           b.length
-        )
-      ) * .97;
-    }
-  }
-
-  return 0;
-}
-
-
-/*
- * Дополнительное сравнение всей этикетки с наименованием.
- * Нужно для FORUM-AUTO и похожих строк, где в C
- * иногда записано описание вместо явного артикула.
- */
-function descriptiveScore(
-  item,
-  text
-) {
-  const stop =
-    new Set([
-      'AUTO',
-      'PART',
-      'PARTS',
-      'MADE',
-      'IN',
-      'THE',
-      'FOR',
-      'NEW',
-      'ART',
-      'АРТ',
-      'СТАРЫЙ',
-      'СТАРОГО',
-      'ШТ',
-      'MM',
-      'ММ'
-    ]);
-
-  const productTokens =
-    tokens(item.name)
-      .map(normalize)
-      .filter(function(x) {
-        return (
-          x.length >= 3 &&
-          !stop.has(x)
         );
-      });
 
-  if (!productTokens.length) {
-    return 0;
-  }
-
-  const ocrSet =
-    new Set(
-      tokens(text)
-        .map(normalize)
-    );
-
-  let totalWeight = 0;
-  let hitWeight = 0;
-
-  productTokens.forEach(function(t) {
-    let weight = 1;
-
-    if (/\d/.test(t)) {
-      weight = 3;
-    }
-    else if (t.length >= 7) {
-      weight = 2;
-    }
-    else if (t.length >= 5) {
-      weight = 1.5;
-    }
-
-    totalWeight += weight;
-
-    if (ocrSet.has(t)) {
-      hitWeight += weight;
-    }
-  });
-
-  if (!totalWeight) {
-    return 0;
-  }
-
-  const ratio =
-    hitWeight /
-    totalWeight;
-
-  /*
-   * Только сильное текстовое совпадение.
-   */
-  if (
-    ratio >= .70 &&
-    hitWeight >= 4
-  ) {
-    return .86 +
-      Math.min(
-        .10,
-        (ratio - .70) * .25
+      return (
+        similarity *
+        .97
       );
+    }
   }
+
 
   return 0;
 }
@@ -1525,7 +1757,9 @@ function descriptiveScore(
 
 function findBestProduct(text) {
   const candidates =
-    makeCandidates(text);
+    makeCandidates(
+      text
+    );
 
   if (
     !candidates.length ||
@@ -1536,63 +1770,132 @@ function findBestProduct(text) {
 
   const results = [];
 
-  catalog.forEach(function(item) {
-    let bestAliasScore = 0;
-    let bestAliasLength = 0;
 
-    (item.aliases || [])
-      .forEach(function(alias) {
-        const aliasNorm =
-          normalize(alias);
+  catalog.forEach(
+    function(item) {
 
-        for (
-          const candidate
-          of candidates
-        ) {
-          const s =
-            scoreAlias(
-              aliasNorm,
-              candidate
+      const aliases =
+        item.articleAliases ||
+        [];
+
+
+      /*
+       * У позиции нет артикула, который можно
+       * надёжно извлечь из таблицы.
+       *
+       * По одному описанию такую строку
+       * автоматически НЕ принимаем.
+       */
+      if (
+        !aliases.length
+      ) {
+        return;
+      }
+
+
+      let bestScore =
+        0;
+
+      let matchedArticle =
+        '';
+
+
+      aliases.forEach(
+        function(alias) {
+
+          const aliasNorm =
+            normalize(
+              alias
             );
 
+
+          /*
+           * Если один и тот же артикул принадлежит
+           * нескольким разным позициям выбранной поставки,
+           * автоматически по нему не выбираем одну из них.
+           */
+          const owners =
+            articleOwnerMap[
+              aliasNorm
+            ];
+
+
           if (
-            s > bestAliasScore ||
-            (
-              s === bestAliasScore &&
-              aliasNorm.length >
-              bestAliasLength
-            )
+            owners &&
+            owners.size > 1
           ) {
-            bestAliasScore = s;
-            bestAliasLength =
-              aliasNorm.length;
+            return;
+          }
+
+
+          for (
+            const candidate
+            of candidates
+          ) {
+            const score =
+              scoreArticleAlias(
+                aliasNorm,
+                candidate
+              );
+
+
+            if (
+              score >
+              bestScore
+            ) {
+              bestScore =
+                score;
+
+              matchedArticle =
+                aliasNorm;
+            }
           }
         }
-      });
-
-    const description =
-      descriptiveScore(
-        item,
-        text
       );
 
-    let score =
-      Math.max(
-        bestAliasScore +
-        brandBonus(
+
+      if (
+        bestScore <= 0
+      ) {
+        return;
+      }
+
+
+      const brand =
+        brandPresent(
           item,
           text
-        ),
-        description
-      );
+        );
 
-    score =
-      Math.min(
-        1,
-        score
-      );
 
-    if (score > 0) {
+      /*
+       * Бренд — только подтверждение.
+       * Без совпадения артикула бренд ничего не даёт.
+       */
+      let finalScore =
+        Math.min(
+          1,
+          bestScore +
+          (
+            brand
+              ? .005
+              : 0
+          )
+        );
+
+
+      const pureNumeric =
+        /^\d+$/.test(
+          matchedArticle
+        );
+
+
+      const pureLetters =
+        /^[A-ZА-Я]+$/.test(
+          matchedArticle
+        );
+
+
       results.push({
         productKey:
           item.productKey,
@@ -1610,45 +1913,61 @@ function findBestProduct(text) {
             item.accepted || 0
           ),
 
+        article:
+          matchedArticle,
+
         score:
-          score,
+          finalScore,
 
-        aliasLength:
-          bestAliasLength,
-
+        /*
+         * Короткие цифровые/буквенные коды
+         * сразу не принимаем без бренда:
+         * подтверждаем вторым кадром.
+         */
         strong:
-          score >= .985 &&
+          finalScore >= .995 &&
           (
-            bestAliasLength >= 6 ||
-            brandBonus(
-              item,
-              text
-            ) > 0
+            matchedArticle.length >= 6
+            ||
+            brand
+            ||
+            (
+              !pureNumeric &&
+              !pureLetters
+            )
           )
       });
     }
-  });
+  );
 
-  if (!results.length) {
+
+  if (
+    !results.length
+  ) {
     return null;
   }
 
-  results.sort(function(a, b) {
-    if (
-      b.score !==
-      a.score
-    ) {
-      return (
-        b.score -
+
+  results.sort(
+    function(a, b) {
+
+      if (
+        b.score !==
         a.score
+      ) {
+        return (
+          b.score -
+          a.score
+        );
+      }
+
+      return (
+        b.article.length -
+        a.article.length
       );
     }
+  );
 
-    return (
-      b.aliasLength -
-      a.aliasLength
-    );
-  });
 
   const best =
     results[0];
@@ -1656,23 +1975,34 @@ function findBestProduct(text) {
   const second =
     results[1];
 
+
+  /*
+   * Теперь порог высокий:
+   * название товара больше не может
+   * протолкнуть слабое совпадение.
+   */
   if (
-    best.score < .86
+    best.score < .90
   ) {
     return null;
   }
 
+
+  /*
+   * Два похожих артикула:
+   * не выбираем наугад.
+   */
   if (
     second &&
     second.productKey !==
       best.productKey &&
-    best.score < .995 &&
     best.score -
       second.score
-    < .05
+    < .04
   ) {
     return null;
   }
+
 
   return best;
 }
@@ -1767,7 +2097,11 @@ function processLabelText(text) {
     now;
 
   setStatus(
-    '🔎 Нашёл совпадение:<br>' +
+    '🔎 Артикул найден: <b>' +
+    escapeHtml(
+      best.article
+    ) +
+    '</b><br>' +
     '<span class="product">' +
     escapeHtml(
       best.name
@@ -1801,7 +2135,11 @@ async function acceptProduct(item) {
   candidateHits = 0;
 
   setStatus(
-    '✅ Товар определён:<br>' +
+    '✅ Артикул: <b>' +
+    escapeHtml(
+      item.article || ''
+    ) +
+    '</b><br>' +
     '<span class="product">' +
     escapeHtml(
       item.name
