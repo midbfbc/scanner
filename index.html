@@ -6,56 +6,71 @@
 <title>Приёмка товара</title>
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@6/dist/tesseract.min.js"></script>
 
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#0f172a;color:#fff;font-family:Arial,sans-serif}
-.wrap{max-width:620px;margin:auto;padding:14px}
-.card{background:#1e293b;border-radius:15px;padding:15px;margin-bottom:12px}
+.wrap{max-width:640px;margin:auto;padding:12px}
+.card{background:#1e293b;border-radius:15px;padding:14px;margin-bottom:11px}
 .title{font-size:22px;font-weight:700;margin-bottom:12px}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;gap:8px}
 .num{font-size:26px;font-weight:700}
 .label{font-size:12px;color:#cbd5e1}
-input{
-  width:100%;border:0;border-radius:10px;padding:15px;font-size:18px;
-  background:#fff;color:#111827;outline:none
-}
-button{
-  width:100%;border:0;border-radius:10px;padding:15px;font-size:17px;
-  font-weight:700;margin-top:9px;cursor:pointer
-}
-button:disabled{opacity:.55;cursor:default}
+input{width:100%;border:0;border-radius:10px;padding:15px;font-size:18px;background:#fff;color:#111827}
+button{width:100%;border:0;border-radius:10px;padding:14px;font-size:17px;font-weight:700;margin-top:8px}
 .blue{background:#2563eb;color:#fff}
 .gray{background:#475569;color:#fff}
-.green{background:#16a34a;color:#fff}
 .ok{background:#14532d;border:2px solid #22c55e}
 .warn{background:#78350f;border:2px solid #f59e0b}
 .bad{background:#7f1d1d;border:2px solid #ef4444}
 .search{background:#1e3a8a;border:2px solid #3b82f6}
-#reader{width:100%;background:#000;border-radius:12px;overflow:hidden}
-.status{min-height:85px;line-height:1.5}
 .hidden{display:none!important}
-.small{font-size:12px;color:#cbd5e1;line-height:1.5}
+.small{font-size:12px;color:#cbd5e1;line-height:1.45}
+.status{min-height:76px;line-height:1.5}
 
-.manual-title{font-size:18px;font-weight:700;margin-bottom:8px}
-.manual-hint{font-size:13px;color:#cbd5e1;line-height:1.4;margin-bottom:10px}
-.suggestions{margin-top:8px;max-height:330px;overflow:auto}
-.suggestion{
-  background:#334155;border:1px solid #475569;border-radius:10px;
-  padding:12px;margin-top:7px;cursor:pointer
+#cameraCard{padding:8px}
+#readerWrap{position:relative;width:100%;overflow:hidden;border-radius:13px;background:#000}
+#reader{width:100%;background:#000}
+#reader video{object-fit:cover}
+
+#articleGuide{
+  position:absolute;
+  left:5%;
+  top:35%;
+  width:90%;
+  height:28%;
+  border:3px solid rgba(59,130,246,.95);
+  border-radius:12px;
+  pointer-events:none;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.12);
+  z-index:10
 }
-.suggestion:active{background:#475569}
-.suggestion-article{font-weight:700;font-size:17px}
-.suggestion-name{font-size:13px;color:#e2e8f0;margin-top:3px}
-.suggestion-rest{font-size:12px;color:#93c5fd;margin-top:4px}
-.selected{
-  border:2px solid #22c55e;
-  background:#14532d
+#articleGuide::before{
+  content:"НАВЕДИ СЮДА АРТИКУЛ";
+  position:absolute;
+  left:50%;
+  top:-28px;
+  transform:translateX(-50%);
+  background:#2563eb;
+  color:#fff;
+  padding:5px 9px;
+  border-radius:7px;
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap
 }
-.pending{
-  background:#78350f;border:1px solid #f59e0b;border-radius:10px;
-  padding:10px;margin-bottom:10px;font-size:13px;line-height:1.4
+
+#ocrState{
+  position:absolute;
+  right:8px;
+  bottom:8px;
+  z-index:11;
+  background:rgba(15,23,42,.82);
+  padding:5px 8px;
+  border-radius:7px;
+  font-size:11px;
+  color:#dbeafe
 }
 </style>
 </head>
@@ -65,7 +80,7 @@ button:disabled{opacity:.55;cursor:default}
 
 <div id="login" class="card">
   <div class="title">📦 Приёмка товара</div>
-  <div class="small">Введи PIN из Code.gs</div>
+  <div class="small">PIN</div>
   <input id="pin" type="password" inputmode="numeric" placeholder="PIN">
   <button class="blue" onclick="login()">ВОЙТИ</button>
 </div>
@@ -74,18 +89,15 @@ button:disabled{opacity:.55;cursor:default}
 
   <div class="card">
     <div id="shipment" class="title">📦 Приёмка</div>
-
     <div class="stats">
       <div>
         <div id="accepted" class="num">0</div>
         <div class="label">принято</div>
       </div>
-
       <div>
         <div id="expected" class="num">0</div>
         <div class="label">ожидается</div>
       </div>
-
       <div>
         <div id="remaining" class="num">0</div>
         <div class="label">осталось</div>
@@ -95,56 +107,14 @@ button:disabled{opacity:.55;cursor:default}
 
   <div class="card">
     <button id="start" class="blue" onclick="startCamera()">📷 ЗАПУСТИТЬ КАМЕРУ</button>
-
-    <button id="ocrButton" class="gray hidden" onclick="runOcr(true)">
-      🔍 РАСПОЗНАТЬ АРТИКУЛ СЕЙЧАС
-    </button>
-
-    <button class="gray" onclick="toggleManual()">
-      ✏️ ВВЕСТИ АРТИКУЛ ВРУЧНУЮ
-    </button>
   </div>
 
-  <div id="manualCard" class="card hidden">
-    <div class="manual-title">✏️ Ручной поиск товара</div>
-
-    <div id="pendingManual" class="pending hidden"></div>
-
-    <div class="manual-hint">
-      Можно вводить только часть артикула или часть названия.
-      Например: <b>344</b>, <b>LN2111</b>, <b>KYB</b>, <b>Febest</b>.
+  <div id="cameraCard" class="card hidden">
+    <div id="readerWrap">
+      <div id="reader"></div>
+      <div id="articleGuide"></div>
+      <div id="ocrState">OCR: запуск…</div>
     </div>
-
-    <input
-      id="manualSearch"
-      type="text"
-      autocomplete="off"
-      autocapitalize="characters"
-      placeholder="Артикул или название"
-      oninput="renderManualSuggestions()"
-      onkeydown="manualKeyDown(event)"
-    >
-
-    <div id="manualSelected" class="small" style="margin-top:10px;"></div>
-
-    <div id="manualSuggestions" class="suggestions"></div>
-
-    <button
-      id="manualAcceptBtn"
-      class="green"
-      onclick="manualAccept()"
-      disabled
-    >
-      ПРИНЯТЬ +1
-    </button>
-
-    <button class="gray" onclick="closeManual()">
-      ЗАКРЫТЬ
-    </button>
-  </div>
-
-  <div id="camera" class="card hidden">
-    <div id="reader"></div>
   </div>
 
   <div id="statusCard" class="card search">
@@ -153,14 +123,12 @@ button:disabled{opacity:.55;cursor:default}
 
   <div class="card">
     <div class="small">
-      Камера работает в двух независимых режимах:
-      <br>• штрихкод/EAN — через сканер кода;
-      <br>• артикул — OCR по всему изображению.
+      <b>Артикул без штрихкода:</b> просто наведи надпись с артикулом в синюю рамку.
+      Система сама распознаёт текст, ищет совпадение среди товаров текущей поставки
+      и сразу увеличивает «Принято» в Google-таблице.
       <br><br>
-      Если артикул не читается, используй кнопку
-      <b>«Ввести артикул вручную»</b>.
-      Если перед этим уже считан неизвестный EAN, ручной выбор
-      автоматически запомнит связь EAN → артикул и сразу примет товар.
+      Если сначала считался неизвестный EAN, затем наведи артикул —
+      система сама запомнит EAN → артикул.
     </div>
   </div>
 
@@ -189,26 +157,14 @@ let cooldownUntil = 0;
 let lastBarcode = '';
 let lastBarcodeTime = 0;
 
-let lastArticle = '';
-let lastArticleTime = 0;
+let lastAcceptedArticle = '';
+let lastAcceptedArticleTime = 0;
 
-let ocrZoneIndex = 0;
-
-/* Выбранный вручную товар */
-let manualSelectedArticle = '';
-
-const OCR_ZONES = [
-  {name:'весь кадр', x:0, y:0, w:1, h:1, scale:1.25},
-  {name:'верх', x:0, y:0, w:1, h:.55, scale:1.7},
-  {name:'середина', x:0, y:.22, w:1, h:.56, scale:1.7},
-  {name:'низ', x:0, y:.45, w:1, h:.55, scale:1.7},
-  {name:'левая часть', x:0, y:0, w:.62, h:1, scale:1.6},
-  {name:'правая часть', x:.38, y:0, w:.62, h:1, scale:1.6}
-];
+let ocrPass = 0;
 
 
 /* =========================
-   API JSONP
+   API
 ========================= */
 
 function api(action, params = {}) {
@@ -225,14 +181,8 @@ function api(action, params = {}) {
 
     function cleanup() {
       clearTimeout(timeout);
-
-      try {
-        delete window[callback];
-      } catch(e) {}
-
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
+      try { delete window[callback]; } catch(e) {}
+      if (script.parentNode) script.parentNode.removeChild(script);
     }
 
     window[callback] = function(data) {
@@ -276,13 +226,11 @@ function api(action, params = {}) {
 
 
 /* =========================
-   LOGIN / INIT
+   LOGIN
 ========================= */
 
 async function login() {
-  const value =
-    document.getElementById('pin').value.trim();
-
+  const value = document.getElementById('pin').value.trim();
   if (!value) return;
 
   accessPin = value;
@@ -327,7 +275,7 @@ async function startCamera() {
   try {
     setStatus('Запрашиваю камеру…', 'search');
 
-    document.getElementById('camera').classList.remove('hidden');
+    document.getElementById('cameraCard').classList.remove('hidden');
 
     const formats = [
       Html5QrcodeSupportedFormats.EAN_13,
@@ -356,26 +304,48 @@ async function startCamera() {
       })
       || cameras[cameras.length - 1];
 
-    await qr.start(
-      back.id,
-      {
-        fps: 12,
-        qrbox: {
-          width: 310,
-          height: 150
-        }
-      },
-      barcodeFound,
-      function() {}
-    );
+    /*
+     * Сначала пробуем включить повышенное разрешение.
+     * Это критично именно для мелкого текста артикула.
+     */
+    try {
+      await qr.start(
+        { deviceId: { exact: back.id } },
+        {
+          fps: 8,
+          disableFlip: true,
+          videoConstraints: {
+            deviceId: { exact: back.id },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          }
+        },
+        barcodeFound,
+        function() {}
+      );
+    } catch(highResError) {
+      /*
+       * Если конкретный телефон не принимает
+       * расширенные constraints — обычный запуск.
+       */
+      await qr.start(
+        back.id,
+        {
+          fps: 8,
+          disableFlip: true
+        },
+        barcodeFound,
+        function() {}
+      );
+    }
 
     cameraStarted = true;
 
     document.getElementById('start').classList.add('hidden');
-    document.getElementById('ocrButton').classList.remove('hidden');
 
     setStatus(
-      'Камера работает.<br><br>Наведи на этикетку товара.',
+      'Камера работает.<br><br>' +
+      'Для артикула без штрихкода наведи сам артикул в синюю рамку.',
       'search'
     );
 
@@ -384,8 +354,7 @@ async function startCamera() {
   } catch(err) {
     setStatus(
       '❌ Камера не запустилась:<br><br>' +
-      escapeHtml(err.message || String(err)) +
-      '<br><br>Открой страницу в Chrome или Safari и разреши доступ к камере.',
+      escapeHtml(err.message || String(err)),
       'bad'
     );
   }
@@ -403,23 +372,22 @@ async function barcodeFound(code) {
   if (serverBusy) return;
 
   /*
-   * Пока ищем артикул для уже считанного EAN,
-   * новые штрихкоды не принимаем.
+   * Если уже нашли неизвестный EAN,
+   * ждём артикул и не заменяем его новым кодом.
    */
   if (pendingBarcode) return;
 
   if (
     code === lastBarcode &&
-    now - lastBarcodeTime < 2500
+    now - lastBarcodeTime < 1800
   ) {
     return;
   }
 
   lastBarcode = code;
   lastBarcodeTime = now;
-  serverBusy = true;
 
-  vibrate(70);
+  serverBusy = true;
 
   setStatus(
     '📦 Штрихкод:<br><b>' +
@@ -429,11 +397,10 @@ async function barcodeFound(code) {
   );
 
   try {
-    const response =
-      await api(
-        'scan',
-        { barcode: code }
-      );
+    const response = await api(
+      'scan',
+      { barcode: code }
+    );
 
     handleResult(response.result);
 
@@ -445,59 +412,80 @@ async function barcodeFound(code) {
 
 
 /* =========================
-   OCR INIT
+   OCR
 ========================= */
 
 async function initOcr() {
   try {
-    setStatus(
-      'Камера работает.<br>Загружаю распознавание артикулов…',
-      'search'
+    setOcrState('OCR: загрузка…');
+
+    /*
+     * Fast tessdata + worker создаётся один раз.
+     * Каталог поставки используется как словарь для проверки результата.
+     */
+    ocrWorker = await Tesseract.createWorker(
+      'eng',
+      Tesseract.OEM.LSTM_ONLY,
+      {
+        langPath:
+          'https://tessdata.projectnaptha.com/4.0.0_fast'
+      }
     );
 
-    ocrWorker =
-      await Tesseract.createWorker('eng');
-
-    await ocrWorker.setParameters({
-      tessedit_char_whitelist:
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-./ ',
-      preserve_interword_spaces: '1',
-      tessedit_pageseg_mode: '11'
-    });
+    await setFastLineMode();
 
     ocrReady = true;
 
-    setStatus(
-      '✅ Готово.<br><br>Наведи камеру на штрихкод или на любое место упаковки, где напечатан артикул.',
-      'search'
-    );
+    setOcrState('OCR: готов');
 
+    /*
+     * Интервал короткий, но новый recognize не запускается,
+     * пока предыдущий не закончен.
+     */
     setInterval(function() {
-      runOcr(false);
-    }, 1500);
+      scanArticleText();
+    }, 650);
 
   } catch(err) {
+    setOcrState('OCR: ошибка');
+
     setStatus(
-      '⚠️ OCR не загрузился, но штрихкоды и ручной ввод продолжают работать.',
+      '⚠️ Камера работает, но OCR артикула не загрузился:<br>' +
+      escapeHtml(err.message || String(err)),
       'warn'
     );
   }
 }
 
 
-/* =========================
-   OCR FRAME
-========================= */
+async function setFastLineMode() {
+  await ocrWorker.setParameters({
+    tessedit_char_whitelist:
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-./ ',
+    preserve_interword_spaces: '1',
+    tessedit_pageseg_mode:
+      Tesseract.PSM.SINGLE_LINE,
+    user_defined_dpi: '300'
+  });
+}
+
+
+async function setSparseMode() {
+  await ocrWorker.setParameters({
+    tessedit_char_whitelist:
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-./ ',
+    preserve_interword_spaces: '1',
+    tessedit_pageseg_mode:
+      Tesseract.PSM.SPARSE_TEXT,
+    user_defined_dpi: '300'
+  });
+}
+
 
 function getVideo() {
-  const video =
-    document.querySelector('#reader video');
+  const video = document.querySelector('#reader video');
 
-  if (
-    !video ||
-    !video.videoWidth ||
-    !video.videoHeight
-  ) {
+  if (!video || !video.videoWidth || !video.videoHeight) {
     return null;
   }
 
@@ -505,47 +493,62 @@ function getVideo() {
 }
 
 
-function getFrame(zone) {
+/*
+ * Быстрый кадр: центральная горизонтальная зона,
+ * совпадающая с синей рамкой.
+ */
+function captureArticleStrip() {
   const video = getVideo();
-
   if (!video) return null;
 
-  zone = zone || OCR_ZONES[0];
+  const sw = Math.round(video.videoWidth * .92);
+  const sh = Math.round(video.videoHeight * .30);
 
-  const sx = Math.round(video.videoWidth * zone.x);
-  const sy = Math.round(video.videoHeight * zone.y);
-  const sw = Math.round(video.videoWidth * zone.w);
-  const sh = Math.round(video.videoHeight * zone.h);
+  const sx = Math.round((video.videoWidth - sw) / 2);
+  const sy = Math.round(video.videoHeight * .34);
 
-  const canvas =
-    document.createElement('canvas');
+  return makeOcrCanvas(video, sx, sy, sw, sh, 2.0);
+}
 
-  canvas.width =
-    Math.max(
-      1,
-      Math.round(sw * zone.scale)
-    );
 
-  canvas.height =
-    Math.max(
-      1,
-      Math.round(sh * zone.scale)
-    );
+/*
+ * Резервный кадр: почти весь экран.
+ * Он запускается реже и ловит артикулы вне рамки.
+ */
+function captureFullFrame() {
+  const video = getVideo();
+  if (!video) return null;
 
-  const ctx =
-    canvas.getContext(
-      '2d',
-      { willReadFrequently: true }
-    );
+  const sw = Math.round(video.videoWidth * .96);
+  const sh = Math.round(video.videoHeight * .90);
+
+  const sx = Math.round((video.videoWidth - sw) / 2);
+  const sy = Math.round((video.videoHeight - sh) / 2);
+
+  return makeOcrCanvas(video, sx, sy, sw, sh, 1.25);
+}
+
+
+function makeOcrCanvas(video, sx, sy, sw, sh, scale) {
+  const canvas = document.createElement('canvas');
+
+  canvas.width = Math.max(1, Math.round(sw * scale));
+  canvas.height = Math.max(1, Math.round(sh * scale));
+
+  const ctx = canvas.getContext(
+    '2d',
+    { willReadFrequently: true }
+  );
 
   ctx.drawImage(
     video,
     sx, sy, sw, sh,
-    0, 0,
-    canvas.width,
-    canvas.height
+    0, 0, canvas.width, canvas.height
   );
 
+  /*
+   * Ч/б + сильный контраст.
+   */
   try {
     const image =
       ctx.getImageData(
@@ -557,231 +560,152 @@ function getFrame(zone) {
 
     const d = image.data;
 
-    for (
-      let i = 0;
-      i < d.length;
-      i += 4
-    ) {
+    for (let i = 0; i < d.length; i += 4) {
       const gray =
         d[i] * .299 +
         d[i + 1] * .587 +
         d[i + 2] * .114;
 
-      let value =
-        (gray - 128) * 1.3 + 128;
+      let v = (gray - 128) * 1.45 + 128;
 
-      value =
-        Math.max(
-          0,
-          Math.min(255, value)
-        );
+      v = Math.max(0, Math.min(255, v));
 
-      d[i] = value;
-      d[i + 1] = value;
-      d[i + 2] = value;
+      d[i] = v;
+      d[i + 1] = v;
+      d[i + 2] = v;
     }
 
-    ctx.putImageData(
-      image,
-      0,
-      0
-    );
-
+    ctx.putImageData(image, 0, 0);
   } catch(e) {}
 
   return canvas;
 }
 
 
-/* =========================
-   OCR
-========================= */
-
-async function runOcr(forced) {
-  if (
-    !ocrReady ||
-    ocrBusy ||
-    serverBusy
-  ) {
-    return;
-  }
-
-  if (
-    !forced &&
-    Date.now() < cooldownUntil
-  ) {
-    return;
-  }
+async function scanArticleText() {
+  if (!ocrReady || ocrBusy || serverBusy) return;
+  if (Date.now() < cooldownUntil) return;
 
   ocrBusy = true;
+  ocrPass++;
 
   try {
-    let zones;
+    /*
+     * 3 быстрых прохода по синей рамке,
+     * затем 1 более широкий проход по всему кадру.
+     */
+    const fullPass =
+      ocrPass % 4 === 0;
 
-    if (forced) {
-      zones = OCR_ZONES;
+    let canvas;
+
+    if (fullPass) {
+      await setSparseMode();
+      canvas = captureFullFrame();
+      setOcrState('OCR: весь кадр');
     } else {
-      zones = [
-        OCR_ZONES[
-          ocrZoneIndex %
-          OCR_ZONES.length
-        ]
-      ];
-
-      ocrZoneIndex =
-        (ocrZoneIndex + 1) %
-        OCR_ZONES.length;
+      await setFastLineMode();
+      canvas = captureArticleStrip();
+      setOcrState('OCR: ищу артикул');
     }
 
-    let match = null;
-    let foundZone = '';
+    if (!canvas) return;
 
-    for (
-      let i = 0;
-      i < zones.length;
-      i++
-    ) {
-      const zone = zones[i];
+    const result =
+      await ocrWorker.recognize(canvas);
 
-      const frame =
-        getFrame(zone);
+    const text =
+      result &&
+      result.data
+        ? (result.data.text || '')
+        : '';
 
-      if (!frame) continue;
-
-      if (
-        pendingBarcode &&
-        forced
-      ) {
-        setStatus(
-          '📦 Штрихкод уже считан.<br><br>' +
-          '🔍 Ищу артикул по всей упаковке…<br>' +
-          '<span style="font-size:12px">' +
-          'Проверяю: ' +
-          escapeHtml(zone.name) +
-          '. Можно перевести камеру с штрихкода на другое место коробки.' +
-          '</span>',
-          'search'
-        );
-      }
-
-      const result =
-        await ocrWorker.recognize(frame);
-
-      const text =
-        result &&
-        result.data
-          ? (result.data.text || '')
-          : '';
-
-      match =
-        findArticle(text);
-
-      if (match) {
-        foundZone =
-          zone.name;
-
-        break;
-      }
-    }
+    const match =
+      findBestArticle(text);
 
     if (!match) {
-      if (forced) {
-        setStatus(
-          pendingBarcode
-            ?
-            '📦 Штрихкод сохранён.<br><br>' +
-            'Артикул пока не найден.<br><br>' +
-            'Можно продолжить камерой или нажать <b>«Ввести артикул вручную»</b>.'
-            :
-            '🔍 Артикул пока не найден.<br><br>' +
-            'Наведи камеру на место с артикулом или используй ручной ввод.',
-          'warn'
-        );
-
-        /*
-         * Если автоматический поиск не помог —
-         * сразу раскрываем ручной резерв.
-         */
-        openManual();
-      }
-
       return;
     }
 
     const now = Date.now();
 
+    /*
+     * Защита от того, чтобы одна и та же коробка
+     * считалась много раз подряд.
+     */
     if (
-      match.article === lastArticle &&
-      now - lastArticleTime < 2600
+      match.article === lastAcceptedArticle &&
+      now - lastAcceptedArticleTime < 1600
     ) {
       return;
     }
 
-    lastArticle =
+    lastAcceptedArticle =
       match.article;
 
-    lastArticleTime =
+    lastAcceptedArticleTime =
       now;
 
-    serverBusy = true;
+    await acceptRecognizedArticle(match);
 
-    setStatus(
-      '🔍 Найден артикул:<br>' +
-      '<b>' +
-      escapeHtml(match.article) +
-      '</b><br>' +
-      escapeHtml(match.name) +
-      '<br><br>' +
-      '<span style="font-size:12px">' +
-      'Распознан в зоне: ' +
-      escapeHtml(foundZone) +
-      '</span><br>' +
-      'Проверяю количество…',
-      'search'
-    );
+  } catch(err) {
+    console.log('OCR', err);
 
+  } finally {
+    ocrBusy = false;
+
+    if (ocrReady) {
+      setOcrState('OCR: готов');
+    }
+  }
+}
+
+
+async function acceptRecognizedArticle(match) {
+  if (serverBusy) return;
+
+  serverBusy = true;
+
+  setStatus(
+    '🔍 Артикул найден автоматически:<br><b>' +
+    escapeHtml(match.article) +
+    '</b><br>' +
+    escapeHtml(match.name) +
+    '<br><br>Принимаю товар…',
+    'search'
+  );
+
+  try {
     let response;
 
     if (pendingBarcode) {
-      response =
-        await api(
-          'bind',
-          {
-            barcode:
-              pendingBarcode,
-
-            article:
-              match.article
-          }
-        );
-
+      response = await api(
+        'bind',
+        {
+          barcode: pendingBarcode,
+          article: match.article
+        }
+      );
     } else {
-      response =
-        await api(
-          'ocr',
-          {
-            article:
-              match.article
-          }
-        );
+      response = await api(
+        'ocr',
+        {
+          article: match.article
+        }
+      );
     }
 
-    handleResult(
-      response.result
-    );
+    handleResult(response.result);
 
   } catch(err) {
     serverBusy = false;
     showError(err);
-
-  } finally {
-    ocrBusy = false;
   }
 }
 
 
 /* =========================
-   OCR MATCH
+   MATCHING
 ========================= */
 
 function normalize(value) {
@@ -791,624 +715,274 @@ function normalize(value) {
 }
 
 
-function getCandidates(text) {
-  const parts =
+/*
+ * Для OCR сравнения:
+ * O и 0, I/L и 1 часто путаются.
+ * Эту версию используем ТОЛЬКО при сравнении,
+ * а на сервер отправляем реальный артикул из каталога.
+ */
+function ocrCanonical(value) {
+  return normalize(value)
+    .replace(/[OQ]/g, '0')
+    .replace(/[IL]/g, '1');
+}
+
+
+function stripLeadingZeroNumeric(value) {
+  const s = normalize(value);
+
+  if (/^\d+$/.test(s)) {
+    return String(Number(s));
+  }
+
+  return s;
+}
+
+
+function getTextCandidates(text) {
+  const raw =
     String(text || '')
       .toUpperCase()
-      .replace(/[^A-ZА-Я0-9\-./\s]/g, ' ')
+      .replace(
+        /[^A-ZА-Я0-9\-./\s]/g,
+        ' '
+      );
+
+  const parts =
+    raw
       .split(/\s+/)
       .map(normalize)
       .filter(Boolean);
 
-  const set =
+  const values =
     new Set();
 
-  for (
-    let i = 0;
-    i < parts.length;
-    i++
-  ) {
-    for (
-      let count = 1;
-      count <= 4;
-      count++
-    ) {
-      if (
-        i + count >
-        parts.length
-      ) {
-        break;
-      }
+  for (let i = 0; i < parts.length; i++) {
+    for (let span = 1; span <= 4; span++) {
+      if (i + span > parts.length) break;
 
-      const value =
+      const joined =
         parts
-          .slice(
-            i,
-            i + count
-          )
+          .slice(i, i + span)
           .join('');
 
-      if (
-        value.length >= 3
-      ) {
-        set.add(value);
+      if (joined.length >= 3) {
+        values.add(joined);
       }
     }
   }
 
-  return [...set];
+  /*
+   * Иногда Tesseract уже выдаёт строку без пробелов.
+   */
+  const all =
+    normalize(raw);
+
+  if (all.length >= 3) {
+    values.add(all);
+  }
+
+  return [...values];
 }
 
 
-function findArticle(text) {
-  const full =
-    normalize(text);
+function findBestArticle(text) {
+  if (!text || !catalog.length) return null;
 
   const candidates =
-    getCandidates(text);
+    getTextCandidates(text);
 
-  const matches = [];
+  if (!candidates.length) return null;
 
-  catalog.forEach(
-    function(item) {
-      const article =
-        normalize(item.article);
+  let best = null;
+  let secondScore = -1;
 
-      if (!article) return;
+  catalog.forEach(function(item) {
+    const article =
+      normalize(item.article);
 
-      const numeric =
-        /^\d+$/.test(article);
+    if (!article) return;
 
-      let found = false;
+    let score = 0;
 
-      if (
-        numeric &&
-        article.length <= 6
-      ) {
-        found =
-          candidates.includes(article);
+    for (const candidateRaw of candidates) {
+      const candidate =
+        normalize(candidateRaw);
 
-      } else {
-        found =
-          full.includes(article)
-          ||
-          candidates.includes(article);
+      /*
+       * Точное совпадение.
+       */
+      if (candidate === article) {
+        score = Math.max(score, 1.0);
+        continue;
       }
 
-      if (found) {
-        matches.push({
-          article:
-            item.article,
+      /*
+       * Чисто цифровые артикулы.
+       * Разрешаем совпадение с ведущим нулём:
+       * 04572 == 4572.
+       */
+      if (
+        /^\d+$/.test(article) &&
+        /^\d+$/.test(candidate)
+      ) {
+        if (
+          stripLeadingZeroNumeric(article) ===
+          stripLeadingZeroNumeric(candidate)
+        ) {
+          score = Math.max(score, .99);
+        }
 
-          name:
-            item.name,
+        continue;
+      }
 
-          length:
-            article.length
-        });
+      /*
+       * Для коротких кодов fuzzy не используем —
+       * слишком большой риск ложного принятия.
+       */
+      if (
+        article.length < 5 ||
+        candidate.length < 5
+      ) {
+        continue;
+      }
+
+      const a =
+        ocrCanonical(article);
+
+      const b =
+        ocrCanonical(candidate);
+
+      /*
+       * Если код встретился внутри более длинной OCR-строки.
+       */
+      if (
+        b.includes(a) ||
+        a.includes(b)
+      ) {
+        const ratio =
+          Math.min(a.length, b.length) /
+          Math.max(a.length, b.length);
+
+        if (ratio >= .78) {
+          score =
+            Math.max(
+              score,
+              .94 * ratio
+            );
+        }
+      }
+
+      /*
+       * Нечёткое сравнение.
+       * Разрешаем 1 ошибку в коротком длинном артикуле
+       * и до 2 ошибок для очень длинных кодов.
+       */
+      if (
+        Math.abs(a.length - b.length) <= 2
+      ) {
+        const distance =
+          levenshtein(a, b);
+
+        const maxEdits =
+          Math.max(a.length, b.length) >= 10
+            ? 2
+            : 1;
+
+        if (distance <= maxEdits) {
+          const similarity =
+            1 -
+            distance /
+            Math.max(a.length, b.length);
+
+          score =
+            Math.max(
+              score,
+              similarity
+            );
+        }
       }
     }
-  );
 
-  if (!matches.length) {
+    if (
+      !best ||
+      score > best.score
+    ) {
+      if (best) {
+        secondScore =
+          best.score;
+      }
+
+      best = {
+        article: item.article,
+        name: item.name,
+        score: score
+      };
+
+    } else if (
+      score > secondScore
+    ) {
+      secondScore = score;
+    }
+  });
+
+  /*
+   * Автоматически принимаем только достаточно
+   * уверенное и однозначное совпадение.
+   */
+  if (!best || best.score < .88) {
     return null;
   }
 
-  matches.sort(
-    function(a, b) {
-      return (
-        b.length -
-        a.length
-      );
-    }
-  );
-
-  return matches[0];
-}
-
-
-/* =========================
-   MANUAL INPUT
-========================= */
-
-function toggleManual() {
-  const card =
-    document.getElementById(
-      'manualCard'
-    );
-
   if (
-    card.classList.contains(
-      'hidden'
-    )
+    secondScore >= 0 &&
+    best.score - secondScore < .035 &&
+    best.score < .99
   ) {
-    openManual();
-  } else {
-    closeManual();
+    return null;
   }
+
+  return best;
 }
 
 
-function openManual() {
-  const card =
-    document.getElementById(
-      'manualCard'
-    );
+function levenshtein(a, b) {
+  const m = a.length;
+  const n = b.length;
 
-  card.classList.remove(
-    'hidden'
-  );
+  const prev =
+    new Array(n + 1);
 
-  manualSelectedArticle = '';
+  const curr =
+    new Array(n + 1);
 
-  document.getElementById(
-    'manualSelected'
-  ).innerHTML = '';
-
-  document.getElementById(
-    'manualAcceptBtn'
-  ).disabled = true;
-
-  const pending =
-    document.getElementById(
-      'pendingManual'
-    );
-
-  if (pendingBarcode) {
-    pending.classList.remove(
-      'hidden'
-    );
-
-    pending.innerHTML =
-      '📦 Уже считан неизвестный штрихкод:<br><b>' +
-      escapeHtml(
-        pendingBarcode
-      ) +
-      '</b><br><br>' +
-      'Выбери товар — система <b>запомнит связь EAN → артикул</b> и сразу примет +1.';
-  } else {
-    pending.classList.add(
-      'hidden'
-    );
-
-    pending.innerHTML = '';
+  for (let j = 0; j <= n; j++) {
+    prev[j] = j;
   }
 
-  renderManualSuggestions();
-
-  setTimeout(function() {
-    document.getElementById(
-      'manualSearch'
-    ).focus();
-  }, 100);
-}
-
-
-function closeManual() {
-  document.getElementById(
-    'manualCard'
-  ).classList.add(
-    'hidden'
-  );
-
-  manualSelectedArticle = '';
-
-  document.getElementById(
-    'manualSearch'
-  ).value = '';
-
-  document.getElementById(
-    'manualSuggestions'
-  ).innerHTML = '';
-
-  document.getElementById(
-    'manualSelected'
-  ).innerHTML = '';
-
-  document.getElementById(
-    'manualAcceptBtn'
-  ).disabled = true;
-}
-
-
-function manualSearchMatches() {
-  const queryRaw =
-    document.getElementById(
-      'manualSearch'
-    ).value.trim();
-
-  const query =
-    normalize(queryRaw);
-
-  /*
-   * Если строка пустая —
-   * показываем только незакрытые позиции.
-   */
-  let list =
-    catalog.filter(
-      function(item) {
-        return (
-          Number(item.accepted || 0) <
-          Number(item.expected || 0)
-        );
-      }
-    );
-
-  if (query) {
-    list =
-      list.filter(
-        function(item) {
-          const article =
-            normalize(item.article);
-
-          const name =
-            normalize(item.name);
-
-          return (
-            article.includes(query)
-            ||
-            name.includes(query)
-          );
-        }
-      );
-
-    /*
-     * Лучшие совпадения вверх:
-     * точный артикул -> начинается с запроса -> прочие.
-     */
-    list.sort(
-      function(a, b) {
-        const aa =
-          normalize(a.article);
-
-        const bb =
-          normalize(b.article);
-
-        const scoreA =
-          aa === query
-            ? 0
-            : aa.startsWith(query)
-              ? 1
-              : 2;
-
-        const scoreB =
-          bb === query
-            ? 0
-            : bb.startsWith(query)
-              ? 1
-              : 2;
-
-        if (scoreA !== scoreB) {
-          return scoreA - scoreB;
-        }
-
-        return aa.localeCompare(bb);
-      }
-    );
-  }
-
-  return list.slice(0, 12);
-}
-
-
-function renderManualSuggestions() {
-  manualSelectedArticle = '';
-
-  document.getElementById(
-    'manualAcceptBtn'
-  ).disabled = true;
-
-  document.getElementById(
-    'manualSelected'
-  ).innerHTML = '';
-
-  const box =
-    document.getElementById(
-      'manualSuggestions'
-    );
-
-  box.innerHTML = '';
-
-  const matches =
-    manualSearchMatches();
-
-  if (!matches.length) {
-    box.innerHTML =
-      '<div class="small" style="padding:10px 2px;">Ничего не найдено в текущей поставке.</div>';
-
-    return;
-  }
-
-  matches.forEach(
-    function(item) {
-      const expected =
-        Number(item.expected || 0);
-
-      const accepted =
-        Number(item.accepted || 0);
-
-      const remaining =
-        Math.max(
-          expected - accepted,
-          0
-        );
-
-      const div =
-        document.createElement(
-          'div'
-        );
-
-      div.className =
-        'suggestion';
-
-      div.dataset.article =
-        item.article;
-
-      div.innerHTML =
-        '<div class="suggestion-article">' +
-        escapeHtml(item.article) +
-        '</div>' +
-        '<div class="suggestion-name">' +
-        escapeHtml(item.name) +
-        '</div>' +
-        '<div class="suggestion-rest">' +
-        'Ожидается: ' +
-        expected +
-        ' • принято: ' +
-        accepted +
-        ' • осталось: ' +
-        remaining +
-        '</div>';
-
-      div.onclick =
-        function() {
-          selectManualItem(
-            item.article
-          );
-        };
-
-      box.appendChild(
-        div
-      );
-    }
-  );
-}
-
-
-function selectManualItem(article) {
-  const item =
-    catalog.find(
-      function(x) {
-        return (
-          normalize(x.article) ===
-          normalize(article)
-        );
-      }
-    );
-
-  if (!item) return;
-
-  manualSelectedArticle =
-    item.article;
-
-  /*
-   * Подставляем именно артикул,
-   * чтобы сотрудник видел,
-   * что выбрано.
-   */
-  document.getElementById(
-    'manualSearch'
-  ).value =
-    item.article;
-
-  document.getElementById(
-    'manualSelected'
-  ).innerHTML =
-    'Выбрано: <b>' +
-    escapeHtml(item.name) +
-    '</b>';
-
-  document.getElementById(
-    'manualAcceptBtn'
-  ).disabled = false;
-
-  document.querySelectorAll(
-    '.suggestion'
-  ).forEach(
-    function(el) {
-      el.classList.toggle(
-        'selected',
-        normalize(
-          el.dataset.article
-        ) ===
-        normalize(
-          item.article
-        )
-      );
-    }
-  );
-}
-
-
-function manualKeyDown(event) {
-  if (
-    event.key !==
-    'Enter'
-  ) {
-    return;
-  }
-
-  event.preventDefault();
-
-  /*
-   * Если введён точный артикул —
-   * выбираем его автоматически.
-   */
-  const value =
-    normalize(
-      document.getElementById(
-        'manualSearch'
-      ).value
-    );
-
-  const exact =
-    catalog.find(
-      function(item) {
-        return (
-          normalize(
-            item.article
-          ) === value
-        );
-      }
-    );
-
-  if (exact) {
-    selectManualItem(
-      exact.article
-    );
-
-    manualAccept();
-
-    return;
-  }
-
-  /*
-   * Если результат ровно один —
-   * Enter тоже может его выбрать.
-   */
-  const matches =
-    manualSearchMatches();
-
-  if (
-    matches.length === 1
-  ) {
-    selectManualItem(
-      matches[0].article
-    );
-
-    manualAccept();
-  }
-}
-
-
-async function manualAccept() {
-  if (
-    !manualSelectedArticle
-  ) {
-    /*
-     * Пользователь мог ввести точный артикул
-     * и не нажать на подсказку.
-     */
-    const entered =
-      normalize(
-        document.getElementById(
-          'manualSearch'
-        ).value
-      );
-
-    const exact =
-      catalog.find(
-        function(item) {
-          return (
-            normalize(
-              item.article
-            ) === entered
-          );
-        }
-      );
-
-    if (exact) {
-      manualSelectedArticle =
-        exact.article;
-    }
-  }
-
-  if (
-    !manualSelectedArticle
-  ) {
-    alert(
-      'Выбери товар из подсказок.'
-    );
-
-    return;
-  }
-
-  if (serverBusy) {
-    return;
-  }
-
-  serverBusy = true;
-
-  document.getElementById(
-    'manualAcceptBtn'
-  ).disabled = true;
-
-  setStatus(
-    '✏️ Ручной выбор:<br><b>' +
-    escapeHtml(
-      manualSelectedArticle
-    ) +
-    '</b><br><br>Проверяю количество…',
-    'search'
-  );
-
-  try {
-    let response;
-
-    if (pendingBarcode) {
-      /*
-       * Был неизвестный EAN:
-       * связываем его с выбранным артикулом
-       * и сразу принимаем +1.
-       */
-      response =
-        await api(
-          'bind',
-          {
-            barcode:
-              pendingBarcode,
-
-            article:
-              manualSelectedArticle
-          }
-        );
-
-    } else {
-      /*
-       * EAN нет — просто принимаем
-       * по выбранному артикулу.
-       */
-      response =
-        await api(
-          'ocr',
-          {
-            article:
-              manualSelectedArticle
-          }
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i;
+
+    for (let j = 1; j <= n; j++) {
+      const cost =
+        a[i - 1] === b[j - 1]
+          ? 0
+          : 1;
+
+      curr[j] =
+        Math.min(
+          prev[j] + 1,
+          curr[j - 1] + 1,
+          prev[j - 1] + cost
         );
     }
 
-    handleResult(
-      response.result
-    );
-
-    /*
-     * При успешной обработке закрываем
-     * ручное окно. Если товар лишний,
-     * результат всё равно будет виден
-     * в основном статусе.
-     */
-    closeManual();
-
-  } catch(err) {
-    serverBusy = false;
-
-    document.getElementById(
-      'manualAcceptBtn'
-    ).disabled = false;
-
-    showError(err);
+    for (let j = 0; j <= n; j++) {
+      prev[j] = curr[j];
+    }
   }
+
+  return prev[n];
 }
 
 
@@ -1420,25 +994,15 @@ function updateCatalogFromResult(res) {
   if (
     !res ||
     !res.article ||
-    typeof res.accepted ===
-      'undefined'
+    typeof res.accepted === 'undefined'
   ) {
     return;
   }
 
   const item =
-    catalog.find(
-      function(x) {
-        return (
-          normalize(
-            x.article
-          ) ===
-          normalize(
-            res.article
-          )
-        );
-      }
-    );
+    catalog.find(function(x) {
+      return normalize(x.article) === normalize(res.article);
+    });
 
   if (!item) return;
 
@@ -1447,7 +1011,7 @@ function updateCatalogFromResult(res) {
 
   if (
     typeof res.expected !==
-      'undefined'
+    'undefined'
   ) {
     item.expected =
       Number(res.expected || 0);
@@ -1461,88 +1025,41 @@ function handleResult(res) {
   if (!res) return;
 
   if (res.summary) {
-    updateSummary(
-      res.summary
-    );
+    updateSummary(res.summary);
   }
 
-  updateCatalogFromResult(
-    res
-  );
+  updateCatalogFromResult(res);
 
-  if (
-    res.type ===
-    'unknown'
-  ) {
+  if (res.type === 'unknown') {
     pendingBarcode =
       res.barcode;
 
-    /*
-     * Если ручное окно уже открыто,
-     * обновим подсказку про EAN.
-     */
-    if (
-      !document
-        .getElementById(
-          'manualCard'
-        )
-        .classList
-        .contains(
-          'hidden'
-        )
-    ) {
-      openManual();
-    }
-
     setStatus(
-      '📦 Штрихкод считан:<br>' +
-      '<b>' +
-      escapeHtml(
-        res.barcode
-      ) +
+      '📦 Штрихкод считан:<br><b>' +
+      escapeHtml(res.barcode) +
       '</b><br><br>' +
-      'Теперь ищу артикул по всей упаковке.<br>' +
-      'Если надпись не читается — нажми <b>«Ввести артикул вручную»</b>.',
+      'EAN пока неизвестен. Теперь наведи в синюю рамку артикул на коробке — ' +
+      'он привяжется автоматически.',
       'warn'
-    );
-
-    setTimeout(
-      function() {
-        runOcr(true);
-      },
-      100
     );
 
     return;
   }
 
-
   if (
-    res.type ===
-      'complete'
-    ||
-    res.type ===
-      'partial'
+    res.type === 'complete' ||
+    res.type === 'partial'
   ) {
     const complete =
-      res.type ===
-      'complete';
+      res.type === 'complete';
 
     setStatus(
-      (
-        complete
-          ? '✅ '
-          : '🟡 '
-      ) +
+      (complete ? '✅ ' : '🟡 ') +
       '<b>' +
-      escapeHtml(
-        res.name
-      ) +
+      escapeHtml(res.name) +
       '</b><br><br>' +
       'Артикул: <b>' +
-      escapeHtml(
-        res.article
-      ) +
+      escapeHtml(res.article) +
       '</b><br>' +
       'Нужно: ' +
       res.expected +
@@ -1553,34 +1070,27 @@ function handleResult(res) {
       'Осталось: <b>' +
       res.remaining +
       '</b>',
-      complete
-        ? 'ok'
-        : 'warn'
+      complete ? 'ok' : 'warn'
     );
 
     pendingBarcode = '';
 
+    /*
+     * Короткая пауза, чтобы одна коробка
+     * не была засчитана два раза.
+     */
     cooldownUntil =
-      Date.now() +
-      2800;
+      Date.now() + 1400;
 
-    vibrate(
-      [80,60,80]
-    );
+    vibrate([80,50,80]);
 
     return;
   }
 
-
-  if (
-    res.type ===
-    'extra'
-  ) {
+  if (res.type === 'extra') {
     setStatus(
       '⚠️ <b>ЛИШНЯЯ ЕДИНИЦА</b><br><br>' +
-      escapeHtml(
-        res.name
-      ) +
+      escapeHtml(res.name) +
       '<br>Уже принято: ' +
       res.accepted +
       ' из ' +
@@ -1589,58 +1099,41 @@ function handleResult(res) {
     );
 
     pendingBarcode = '';
-
     cooldownUntil =
-      Date.now() +
-      3500;
+      Date.now() + 1800;
+
+    vibrate([180,70,180]);
 
     return;
   }
 
-
-  if (
-    res.type ===
-    'conflict'
-  ) {
+  if (res.type === 'conflict') {
     setStatus(
       '❌ Конфликт штрихкода.<br><br>' +
       'Он уже привязан к <b>' +
-      escapeHtml(
-        res.mappedArticle
-      ) +
+      escapeHtml(res.mappedArticle) +
       '</b>',
       'bad'
     );
 
     pendingBarcode = '';
-
     return;
   }
 
-
-  if (
-    res.type ===
-    'not_found'
-  ) {
+  if (res.type === 'not_found') {
     setStatus(
-      '❌ Товар отсутствует в текущей поставке.<br><br>' +
-      'Артикул: <b>' +
-      escapeHtml(
-        res.article || ''
-      ) +
-      '</b>',
+      '❌ Распознанный артикул отсутствует в текущей поставке.',
       'bad'
     );
 
     return;
   }
 
-
   setStatus(
     '❌ ' +
     escapeHtml(
       res.message ||
-      'Товар не найден'
+      'Ошибка'
     ),
     'bad'
   );
@@ -1654,36 +1147,33 @@ function handleResult(res) {
 function updateSummary(data) {
   if (!data) return;
 
-  document.getElementById(
-    'accepted'
-  ).textContent =
+  document.getElementById('accepted').textContent =
     data.accepted;
 
-  document.getElementById(
-    'expected'
-  ).textContent =
+  document.getElementById('expected').textContent =
     data.expected;
 
-  document.getElementById(
-    'remaining'
-  ).textContent =
+  document.getElementById('remaining').textContent =
     data.remaining;
 }
 
 
-function setStatus(
-  html,
-  type
-) {
-  document.getElementById(
-    'statusCard'
-  ).className =
+function setStatus(html, type) {
+  document.getElementById('statusCard').className =
     'card ' + type;
 
-  document.getElementById(
-    'status'
-  ).innerHTML =
+  document.getElementById('status').innerHTML =
     html;
+}
+
+
+function setOcrState(text) {
+  const el =
+    document.getElementById('ocrState');
+
+  if (el) {
+    el.textContent = text;
+  }
 }
 
 
@@ -1713,9 +1203,7 @@ function escapeHtml(value) {
 
 function vibrate(pattern) {
   try {
-    navigator.vibrate(
-      pattern
-    );
+    navigator.vibrate(pattern);
   } catch(e) {}
 }
 
@@ -1728,9 +1216,7 @@ window.onload =
 async function() {
   if (!accessPin) return;
 
-  document.getElementById(
-    'pin'
-  ).value =
+  document.getElementById('pin').value =
     accessPin;
 
   try {
