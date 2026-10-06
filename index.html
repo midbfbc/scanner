@@ -3,55 +3,115 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Приёмка товара</title>
+<title>Сканер артикулов</title>
 
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<!-- Только OCR. Никаких библиотек штрихкодов. -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#0f172a;color:#fff;font-family:Arial,sans-serif}
-.wrap{max-width:640px;margin:auto;padding:12px}
-.card{background:#1e293b;border-radius:15px;padding:14px;margin-bottom:11px}
-.title{font-size:22px;font-weight:700;margin-bottom:12px}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;gap:8px}
-.num{font-size:26px;font-weight:700}
-.label{font-size:12px;color:#cbd5e1}
-input{width:100%;border:0;border-radius:10px;padding:15px;font-size:18px;background:#fff;color:#111827}
-button{width:100%;border:0;border-radius:10px;padding:14px;font-size:17px;font-weight:700;margin-top:8px}
+body{
+  margin:0;
+  background:#0f172a;
+  color:#fff;
+  font-family:Arial,sans-serif
+}
+.wrap{
+  max-width:680px;
+  margin:auto;
+  padding:12px
+}
+.card{
+  background:#1e293b;
+  border-radius:15px;
+  padding:14px;
+  margin-bottom:11px
+}
+.title{
+  font-size:22px;
+  font-weight:700;
+  margin-bottom:12px
+}
+.stats{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  text-align:center;
+  gap:8px
+}
+.num{
+  font-size:26px;
+  font-weight:700
+}
+.label{
+  font-size:12px;
+  color:#cbd5e1
+}
+input{
+  width:100%;
+  border:0;
+  border-radius:10px;
+  padding:15px;
+  font-size:18px;
+  background:#fff;
+  color:#111827
+}
+button{
+  width:100%;
+  border:0;
+  border-radius:10px;
+  padding:14px;
+  font-size:17px;
+  font-weight:700;
+  margin-top:8px
+}
 .blue{background:#2563eb;color:#fff}
 .ok{background:#14532d;border:2px solid #22c55e}
 .warn{background:#78350f;border:2px solid #f59e0b}
 .bad{background:#7f1d1d;border:2px solid #ef4444}
 .search{background:#1e3a8a;border:2px solid #3b82f6}
 .hidden{display:none!important}
-.small{font-size:12px;color:#cbd5e1;line-height:1.45}
-.status{min-height:76px;line-height:1.5}
+.small{
+  font-size:12px;
+  color:#cbd5e1;
+  line-height:1.45
+}
+.status{
+  min-height:78px;
+  line-height:1.5
+}
 
-#cameraCard{padding:8px}
-#readerWrap{position:relative;width:100%;overflow:hidden;border-radius:13px;background:#000}
-#reader{width:100%;background:#000}
-#reader video{object-fit:cover}
+.camera-card{padding:8px}
+.camera-wrap{
+  position:relative;
+  width:100%;
+  overflow:hidden;
+  border-radius:13px;
+  background:#000
+}
+#video{
+  width:100%;
+  display:block;
+  background:#000
+}
 
-#articleGuide{
+#guide{
   position:absolute;
   left:4%;
-  top:31%;
+  top:29%;
   width:92%;
-  height:34%;
-  border:3px solid rgba(59,130,246,.98);
+  height:42%;
+  border:3px solid #3b82f6;
   border-radius:12px;
   pointer-events:none;
-  z-index:10
+  box-shadow:0 0 0 9999px rgba(0,0,0,.10)
 }
-#articleGuide::before{
-  content:"АРТИКУЛ С БУКВАМИ / ЦИФРАМИ";
+#guide::before{
+  content:"НАВЕДИ СЮДА ТОЛЬКО АРТИКУЛ";
   position:absolute;
   left:50%;
-  top:-29px;
+  top:-30px;
   transform:translateX(-50%);
   background:#2563eb;
-  color:#fff;
   padding:5px 9px;
   border-radius:7px;
   font-size:11px;
@@ -59,23 +119,25 @@ button{width:100%;border:0;border-radius:10px;padding:14px;font-size:17px;font-w
   white-space:nowrap
 }
 
-#ocrState{
+#ocrBadge{
   position:absolute;
   right:8px;
   bottom:8px;
-  z-index:11;
   background:rgba(15,23,42,.86);
-  padding:5px 8px;
   border-radius:7px;
+  padding:5px 8px;
   font-size:11px;
   color:#dbeafe
 }
-
-#ocrSeen{
+#seen{
   margin-top:8px;
-  font-size:11px;
+  font-size:12px;
   color:#94a3b8;
-  word-break:break-all
+  word-break:break-word
+}
+.detected{
+  font-size:20px;
+  font-weight:700
 }
 </style>
 </head>
@@ -83,1396 +145,905 @@ button{width:100%;border:0;border-radius:10px;padding:14px;font-size:17px;font-w
 <body>
 <div class="wrap">
 
-<div id="login" class="card">
-  <div class="title">📦 Приёмка товара</div>
-  <div class="small">PIN</div>
-  <input id="pin" type="password" inputmode="numeric" placeholder="PIN">
-  <button class="blue" onclick="login()">ВОЙТИ</button>
-</div>
+  <div id="login" class="card">
+    <div class="title">📦 Сканер артикулов</div>
+    <div class="small">PIN</div>
+    <input
+      id="pin"
+      type="password"
+      inputmode="numeric"
+      placeholder="PIN"
+    >
+    <button class="blue" onclick="login()">
+      ВОЙТИ
+    </button>
+  </div>
 
-<div id="app" class="hidden">
 
-  <div class="card">
-    <div id="shipment" class="title">📦 Приёмка</div>
+  <div id="app" class="hidden">
 
-    <div class="stats">
-      <div>
-        <div id="accepted" class="num">0</div>
-        <div class="label">принято</div>
+    <div class="card">
+      <div id="shipment" class="title">
+        📦 Приёмка
       </div>
 
-      <div>
-        <div id="expected" class="num">0</div>
-        <div class="label">ожидается</div>
+      <div class="stats">
+        <div>
+          <div id="accepted" class="num">0</div>
+          <div class="label">принято</div>
+        </div>
+
+        <div>
+          <div id="expected" class="num">0</div>
+          <div class="label">ожидается</div>
+        </div>
+
+        <div>
+          <div id="remaining" class="num">0</div>
+          <div class="label">осталось</div>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="card">
+      <button
+        id="startBtn"
+        class="blue"
+        onclick="startScanner()"
+      >
+        📷 ЗАПУСТИТЬ СКАНЕР АРТИКУЛОВ
+      </button>
+    </div>
+
+
+    <div
+      id="cameraCard"
+      class="card camera-card hidden"
+    >
+      <div class="camera-wrap">
+        <video
+          id="video"
+          autoplay
+          muted
+          playsinline
+        ></video>
+
+        <div id="guide"></div>
+        <div id="ocrBadge">OCR: запуск…</div>
       </div>
 
-      <div>
-        <div id="remaining" class="num">0</div>
-        <div class="label">осталось</div>
+      <div id="seen">
+        Камера ещё ничего не прочитала.
       </div>
     </div>
-  </div>
 
-  <div class="card">
-    <button id="start" class="blue" onclick="startCamera()">📷 ЗАПУСТИТЬ КАМЕРУ</button>
-  </div>
 
-  <div id="cameraCard" class="card hidden">
-    <div id="readerWrap">
-      <div id="reader"></div>
-      <div id="articleGuide"></div>
-      <div id="ocrState">OCR: запуск…</div>
+    <div id="statusCard" class="card search">
+      <div id="status" class="status">
+        Нажми «Запустить сканер артикулов».
+      </div>
     </div>
-    <div id="ocrSeen"></div>
-  </div>
 
-  <div id="statusCard" class="card search">
-    <div id="status" class="status">Нажми «Запустить камеру»</div>
-  </div>
 
-  <div class="card">
-    <div class="small">
-      <b>Артикул без штрихкода:</b> наведи сам артикул в синюю рамку.
-      Буквы и цифры распознаются вместе.
-      Найденный артикул автоматически ищется среди товаров из
-      <b>ROSKO + PHAETON + остальных блоков Лист1</b> и сразу отмечается в Google-таблице.
+    <div class="card">
+      <div class="small">
+        <b>Штрихкоды полностью отключены.</b>
+        Сканер читает только напечатанный артикул.
+        Он может состоять только из букв, только из цифр
+        или из букв и цифр.
+        <br><br>
+        Один физический товар = одно принятие.
+        Если в таблице количество 5, нужно показать
+        5 отдельных товаров. Один и тот же товар,
+        оставленный перед камерой, несколько раз не засчитается.
+      </div>
     </div>
-  </div>
 
+  </div>
 </div>
-</div>
+
 
 <script>
 const API =
-'https://script.google.com/macros/s/AKfycby83Hxy4yg9Gtv5UaObBTqHJ4fu_9Vy5Fwuc-E6Hy9tKV09Q9z2MUpkanFRYNsI_J8r/exec';
+  'https://script.google.com/macros/s/AKfycby83Hxy4yg9Gtv5UaObBTqHJ4fu_9Vy5Fwuc-E6Hy9tKV09Q9z2MUpkanFRYNsI_J8r/exec';
 
 let accessPin =
-  localStorage.getItem(
-    'warehousePin'
-  ) || '';
+  localStorage.getItem('warehousePin') || '';
 
 let catalog = [];
 
-let qr = null;
-let cameraStarted = false;
+let videoStream = null;
+let videoTrack = null;
 
-let ocrWorker = null;
+let worker = null;
 let ocrReady = false;
 let ocrBusy = false;
-
 let serverBusy = false;
-let pendingBarcode = '';
 
-let cooldownUntil = 0;
+let pass = 0;
 
-let lastBarcode = '';
-let lastBarcodeTime = 0;
+/*
+ * Защита от повторного считывания
+ * одного и того же физического товара.
+ */
+let blockedKey = '';
+let blockedMisses = 0;
 
-let lastAcceptedArticle = '';
-let lastAcceptedArticleTime = 0;
-
-let ocrPass = 0;
-
-
-/* =====================================================
-   API
-===================================================== */
-
-function api(
-  action,
-  params = {}
-) {
-
-  return new Promise(
-    function(
-      resolve,
-      reject
-    ) {
-
-      const callback =
-        '__cb_' +
-        Date.now() +
-        '_' +
-        Math.random()
-          .toString(36)
-          .slice(2);
+/*
+ * Для неидеальных OCR совпадений
+ * требуем подтверждение вторым кадром.
+ */
+let candidateKey = '';
+let candidateHits = 0;
+let candidateAt = 0;
 
 
-      const script =
-        document
-          .createElement(
-            'script'
-          );
+/* =========================================================
+   API JSONP
+========================================================= */
 
+function api(action, params = {}) {
+  return new Promise(function(resolve, reject) {
+    const callback =
+      '__article_cb_' +
+      Date.now() +
+      '_' +
+      Math.random()
+        .toString(36)
+        .slice(2);
 
-      const timeout =
-        setTimeout(
-          function() {
+    const script =
+      document.createElement('script');
 
-            cleanup();
-
-            reject(
-              new Error(
-                'Apps Script не ответил'
-              )
-            );
-
-          },
-          20000
-        );
-
-
-      function cleanup() {
-
-        clearTimeout(
-          timeout
-        );
-
-
-        try {
-
-          delete window[
-            callback
-          ];
-
-        }
-
-        catch(e) {}
-
-
-        if (
-          script.parentNode
-        ) {
-
-          script
-            .parentNode
-            .removeChild(
-              script
-            );
-        }
-      }
-
-
-      window[
-        callback
-      ] =
-        function(data) {
-
-          cleanup();
-
-
-          if (
-            data &&
-            data.ok
-          ) {
-
-            resolve(
-              data
-            );
-          }
-
-
-          else {
-
-            reject(
-              new Error(
-                data &&
-                data.error
-                  ? data.error
-                  : 'Ошибка API'
-              )
-            );
-          }
-        };
-
-
-      const query =
-        new URLSearchParams(
-          Object.assign(
-            {
-              action:
-                action,
-
-              pin:
-                accessPin,
-
-              callback:
-                callback,
-
-              _:
-                Date.now()
-            },
-
-            params
+    const timeout =
+      setTimeout(function() {
+        cleanup();
+        reject(
+          new Error(
+            'Apps Script не ответил'
           )
         );
+      }, 20000);
 
+    function cleanup() {
+      clearTimeout(timeout);
 
-      script.src =
-        API +
-        '?' +
-        query.toString();
+      try {
+        delete window[callback];
+      } catch(e) {}
 
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    }
 
-      script.onerror =
-        function() {
+    window[callback] =
+      function(data) {
+        cleanup();
 
-          cleanup();
-
+        if (data && data.ok) {
+          resolve(data);
+        } else {
           reject(
             new Error(
-              'Не удалось подключиться к Apps Script'
+              data && data.error
+                ? data.error
+                : 'Ошибка API'
             )
           );
-        };
+        }
+      };
 
+    const query =
+      new URLSearchParams(
+        Object.assign(
+          {
+            action: action,
+            pin: accessPin,
+            callback: callback,
+            _: Date.now()
+          },
+          params
+        )
+      );
 
-      document
-        .body
-        .appendChild(
-          script
+    script.src =
+      API +
+      '?' +
+      query.toString();
+
+    script.onerror =
+      function() {
+        cleanup();
+        reject(
+          new Error(
+            'Не удалось подключиться к Apps Script'
+          )
         );
-    }
-  );
+      };
+
+    document.body.appendChild(script);
+  });
 }
 
 
-/* =====================================================
+/* =========================================================
    LOGIN
-===================================================== */
+========================================================= */
 
 async function login() {
-
   const value =
     document
-      .getElementById(
-        'pin'
-      )
+      .getElementById('pin')
       .value
       .trim();
-
 
   if (!value) {
     return;
   }
 
-
-  accessPin =
-    value;
-
+  accessPin = value;
 
   try {
-
     const response =
-      await api(
-        'init'
-      );
+      await api('init');
 
-
-    localStorage
-      .setItem(
-        'warehousePin',
-        accessPin
-      );
-
-
-    initApp(
-      response.data
+    localStorage.setItem(
+      'warehousePin',
+      accessPin
     );
 
+    initApp(response.data);
   }
 
   catch(err) {
-
     if (
-      String(
-        err.message
-      )
-      .includes(
-        'BAD_PIN'
-      )
+      String(err.message)
+        .includes('BAD_PIN')
     ) {
-
-      alert(
-        'Неверный PIN'
-      );
-    }
-
-
-    else {
-
-      alert(
-        err.message
-      );
+      alert('Неверный PIN');
+    } else {
+      alert(err.message);
     }
   }
 }
 
 
-function initApp(
-  data
-) {
-
+function initApp(data) {
   catalog =
-    data.catalog || [];
+    Array.isArray(data.catalog)
+      ? data.catalog
+      : [];
 
+  prepareAliasOwners();
 
   document
-    .getElementById(
-      'shipment'
-    )
+    .getElementById('shipment')
     .textContent =
     '📦 ' +
-    data.shipmentName;
+    (data.shipmentName || 'Приёмка');
 
-
-  updateSummary(
-    data.summary
-  );
-
+  updateSummary(data.summary);
 
   document
-    .getElementById(
-      'login'
-    )
+    .getElementById('login')
     .classList
-    .add(
-      'hidden'
-    );
-
+    .add('hidden');
 
   document
-    .getElementById(
-      'app'
-    )
+    .getElementById('app')
     .classList
-    .remove(
-      'hidden'
-    );
+    .remove('hidden');
 }
 
 
-/* =====================================================
-   CAMERA
-===================================================== */
+/* =========================================================
+   CAMERA — ОБЫЧНЫЙ getUserMedia
+   НИКАКИХ ШТРИХКОДОВ
+========================================================= */
 
-async function startCamera() {
-
-  if (
-    cameraStarted
-  ) {
-    return;
-  }
-
-
+async function startScanner() {
   try {
-
     setStatus(
-      'Запрашиваю камеру…',
+      'Запускаю камеру…',
       'search'
     );
 
+    videoStream =
+      await navigator.mediaDevices
+        .getUserMedia({
+          audio: false,
+          video: {
+            facingMode: {
+              ideal: 'environment'
+            },
+            width: {
+              ideal: 1920
+            },
+            height: {
+              ideal: 1080
+            }
+          }
+        });
+
+    const video =
+      document
+        .getElementById('video');
+
+    video.srcObject =
+      videoStream;
+
+    await video.play();
+
+    videoTrack =
+      videoStream
+        .getVideoTracks()[0];
+
+    await improveCamera();
 
     document
-      .getElementById(
-        'cameraCard'
-      )
+      .getElementById('cameraCard')
       .classList
-      .remove(
-        'hidden'
-      );
-
-
-    const formats = [
-
-      Html5QrcodeSupportedFormats
-        .EAN_13,
-
-      Html5QrcodeSupportedFormats
-        .EAN_8,
-
-      Html5QrcodeSupportedFormats
-        .UPC_A,
-
-      Html5QrcodeSupportedFormats
-        .UPC_E,
-
-      Html5QrcodeSupportedFormats
-        .CODE_128,
-
-      Html5QrcodeSupportedFormats
-        .CODE_39,
-
-      Html5QrcodeSupportedFormats
-        .ITF
-    ];
-
-
-    qr =
-      new Html5Qrcode(
-        'reader',
-        {
-          formatsToSupport:
-            formats
-        }
-      );
-
-
-    const cameras =
-      await Html5Qrcode
-        .getCameras();
-
-
-    if (
-      !cameras ||
-      !cameras.length
-    ) {
-
-      throw new Error(
-        'Камера не найдена'
-      );
-    }
-
-
-    const back =
-      cameras.find(
-        function(cam) {
-
-          return /back|rear|environment|зад/i
-            .test(
-              cam.label || ''
-            );
-        }
-      )
-      ||
-      cameras[
-        cameras.length - 1
-      ];
-
-
-    await qr.start(
-
-      back.id,
-
-      {
-        fps:
-          10
-      },
-
-      barcodeFound,
-
-      function() {}
-    );
-
-
-    cameraStarted =
-      true;
-
+      .remove('hidden');
 
     document
-      .getElementById(
-        'start'
-      )
+      .getElementById('startBtn')
       .classList
-      .add(
-        'hidden'
-      );
-
-
-    /*
-     * Просим камеру постоянно фокусироваться,
-     * если телефон это поддерживает.
-     */
-    improveCameraFocus();
-
+      .add('hidden');
 
     setStatus(
-
       'Камера работает.<br><br>' +
-      'Для артикула без штрихкода наведи ' +
-      '<b>буквы и цифры артикула</b> в синюю рамку.',
-
+      'Наведи <b>сам артикул</b> в синюю рамку.',
       'search'
     );
 
-
-    initOcr();
-
+    await initOcr();
   }
 
   catch(err) {
-
     setStatus(
-
-      '❌ Камера не запустилась:<br><br>' +
+      '❌ Не удалось запустить камеру:<br><br>' +
       escapeHtml(
         err.message ||
         String(err)
       ),
-
       'bad'
     );
   }
 }
 
 
-async function improveCameraFocus() {
+async function improveCamera() {
+  if (!videoTrack) {
+    return;
+  }
 
   try {
-
-    const video =
-      getVideo();
-
-
-    if (
-      !video ||
-      !video.srcObject
-    ) {
-      return;
-    }
-
-
-    const track =
-      video
-        .srcObject
-        .getVideoTracks()[0];
-
-
-    if (!track) {
-      return;
-    }
-
-
     const capabilities =
-      track.getCapabilities
-        ? track.getCapabilities()
+      videoTrack.getCapabilities
+        ? videoTrack.getCapabilities()
         : {};
 
-
-    const advanced =
-      [];
-
+    const advanced = [];
 
     if (
       capabilities.focusMode &&
-      capabilities.focusMode.includes(
-        'continuous'
-      )
+      capabilities.focusMode.includes('continuous')
     ) {
-
       advanced.push({
-        focusMode:
-          'continuous'
+        focusMode: 'continuous'
       });
     }
 
-
     if (
-      advanced.length
+      capabilities.exposureMode &&
+      capabilities.exposureMode.includes('continuous')
     ) {
-
-      await track
-        .applyConstraints({
-          advanced:
-            advanced
-        });
+      advanced.push({
+        exposureMode: 'continuous'
+      });
     }
 
+    if (advanced.length) {
+      await videoTrack
+        .applyConstraints({
+          advanced: advanced
+        });
+    }
   }
 
   catch(e) {
-
-    console.log(
-      'FOCUS',
-      e
-    );
+    console.log('camera constraints', e);
   }
 }
 
 
-/* =====================================================
-   BARCODE
-===================================================== */
-
-async function barcodeFound(
-  code
-) {
-
-  const now =
-    Date.now();
-
-
-  if (
-    now <
-    cooldownUntil
-  ) {
-    return;
-  }
-
-
-  if (
-    serverBusy
-  ) {
-    return;
-  }
-
-
-  /*
-   * Уже есть неизвестный EAN —
-   * ждём его артикул.
-   */
-  if (
-    pendingBarcode
-  ) {
-    return;
-  }
-
-
-  if (
-    code ===
-      lastBarcode &&
-    now -
-      lastBarcodeTime
-    <
-    1800
-  ) {
-
-    return;
-  }
-
-
-  lastBarcode =
-    code;
-
-
-  lastBarcodeTime =
-    now;
-
-
-  serverBusy =
-    true;
-
-
-  setStatus(
-
-    '📦 Штрихкод:<br><b>' +
-    escapeHtml(
-      code
-    ) +
-    '</b><br><br>' +
-    'Проверяю…',
-
-    'search'
-  );
-
-
-  try {
-
-    const response =
-      await api(
-        'scan',
-        {
-          barcode:
-            code
-        }
-      );
-
-
-    handleResult(
-      response.result
-    );
-
-  }
-
-  catch(err) {
-
-    serverBusy =
-      false;
-
-
-    showError(
-      err
-    );
-  }
-}
-
-
-/* =====================================================
+/* =========================================================
    OCR
-===================================================== */
+========================================================= */
 
 async function initOcr() {
-
   try {
-
-    setOcrState(
-      'OCR: загрузка…'
+    setOcrBadge(
+      'OCR: загружаю русский + английский…'
     );
-
-
-    ocrWorker =
-      await Tesseract
-        .createWorker(
-          'eng'
-        );
-
-
-    await setLineMode();
-
-
-    ocrReady =
-      true;
-
-
-    setOcrState(
-      'OCR: готов'
-    );
-
 
     /*
-     * Проверяем изображение часто,
-     * но одновременно работает только один recognize().
+     * eng + rus:
+     * если артикул вдруг содержит кириллицу,
+     * он тоже может быть распознан.
      */
-    setInterval(
-      function() {
+    worker =
+      await Tesseract.createWorker(
+        ['eng', 'rus']
+      );
 
-        scanArticleText();
+    await setOcrParameters(7);
 
-      },
-      700
-    );
+    ocrReady = true;
 
+    setOcrBadge('OCR: готов');
+
+    /*
+     * Запускаем последовательный цикл.
+     * Следующий кадр начинается только после завершения предыдущего.
+     */
+    ocrLoop();
   }
 
   catch(err) {
-
-    setOcrState(
-      'OCR: ошибка'
-    );
-
+    setOcrBadge('OCR: ошибка');
 
     setStatus(
-
-      '⚠️ OCR буквенно-цифровых артикулов не загрузился:<br>' +
+      '❌ OCR не загрузился:<br>' +
       escapeHtml(
         err.message ||
         String(err)
       ),
-
-      'warn'
+      'bad'
     );
   }
 }
 
 
-async function setLineMode() {
+async function setOcrParameters(psm) {
+  await worker.setParameters({
+    /*
+     * Разрешаем:
+     * - латиницу
+     * - кириллицу
+     * - цифры
+     * - стандартные разделители артикула
+     */
+    tessedit_char_whitelist:
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz' +
+      'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ' +
+      'абвгдеёжзийклмнопрстуфхцчшщъыьэюя' +
+      '0123456789-./_ ',
 
-  await ocrWorker
-    .setParameters({
+    preserve_interword_spaces: '1',
 
-      /*
-       * Явно разрешены латинские буквы
-       * A–Z и цифры.
-       */
-      tessedit_char_whitelist:
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-./ ',
+    /*
+     * 7 = одна строка
+     * 11 = разрозненный текст
+     */
+    tessedit_pageseg_mode:
+      String(psm),
 
-      preserve_interword_spaces:
-        '1',
-
-      /*
-       * SINGLE_LINE хорошо работает,
-       * когда артикул попал в синюю рамку.
-       */
-      tessedit_pageseg_mode:
-        '7',
-
-      user_defined_dpi:
-        '300'
-    });
+    user_defined_dpi: '300'
+  });
 }
 
 
-async function setSparseMode() {
+async function ocrLoop() {
+  if (!ocrReady) {
+    return;
+  }
 
-  await ocrWorker
-    .setParameters({
+  if (
+    ocrBusy ||
+    serverBusy
+  ) {
+    setTimeout(
+      ocrLoop,
+      150
+    );
+    return;
+  }
 
-      tessedit_char_whitelist:
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-./ ',
+  ocrBusy = true;
+  pass++;
 
-      preserve_interword_spaces:
-        '1',
+  try {
+    /*
+     * 3 прохода по синей рамке,
+     * каждый 4-й — по почти всему кадру.
+     */
+    const fullFrame =
+      pass % 4 === 0;
 
-      /*
-       * Разрозненный текст по всему кадру.
-       */
-      tessedit_pageseg_mode:
-        '11',
+    /*
+     * Чередуем обычный серый кадр и
+     * контрастный ч/б кадр.
+     */
+    const thresholdMode =
+      pass % 2 === 0;
 
-      user_defined_dpi:
-        '300'
-    });
-}
+    await setOcrParameters(
+      fullFrame ? 11 : 7
+    );
 
-
-function getVideo() {
-
-  const video =
-    document
-      .querySelector(
-        '#reader video'
+    const canvas =
+      captureFrame(
+        fullFrame,
+        thresholdMode
       );
 
+    if (canvas) {
+      setOcrBadge(
+        fullFrame
+          ? 'OCR: весь кадр'
+          : 'OCR: читаю артикул'
+      );
+
+      const result =
+        await worker.recognize(
+          canvas
+        );
+
+      const text =
+        result &&
+        result.data
+          ? (
+              result.data.text ||
+              ''
+            )
+          : '';
+
+      showSeen(text);
+
+      processOcrText(text);
+    }
+  }
+
+  catch(err) {
+    console.log('OCR error', err);
+  }
+
+  finally {
+    ocrBusy = false;
+
+    if (ocrReady) {
+      setOcrBadge('OCR: готов');
+    }
+
+    setTimeout(
+      ocrLoop,
+      120
+    );
+  }
+}
+
+
+/* =========================================================
+   CAPTURE / PREPROCESSING
+========================================================= */
+
+function getVideo() {
+  const video =
+    document
+      .getElementById('video');
 
   if (
     !video ||
     !video.videoWidth ||
     !video.videoHeight
   ) {
-
     return null;
   }
-
 
   return video;
 }
 
 
-/*
- * Основной быстрый кадр.
- * Сотрудник наводит надпись артикула
- * внутрь синей рамки.
- */
-function captureArticleStrip() {
-
-  const video =
-    getVideo();
-
-
-  if (!video) {
-    return null;
-  }
-
-
-  const sw =
-    Math.round(
-      video.videoWidth *
-      .94
-    );
-
-
-  const sh =
-    Math.round(
-      video.videoHeight *
-      .36
-    );
-
-
-  const sx =
-    Math.round(
-      (
-        video.videoWidth -
-        sw
-      ) / 2
-    );
-
-
-  const sy =
-    Math.round(
-      video.videoHeight *
-      .30
-    );
-
-
-  return makeOcrCanvas(
-    video,
-    sx,
-    sy,
-    sw,
-    sh,
-    2.1
-  );
-}
-
-
-/*
- * Каждый четвёртый проход —
- * ищем текст почти по всему кадру.
- */
-function captureFullFrame() {
-
-  const video =
-    getVideo();
-
-
-  if (!video) {
-    return null;
-  }
-
-
-  const sw =
-    Math.round(
-      video.videoWidth *
-      .96
-    );
-
-
-  const sh =
-    Math.round(
-      video.videoHeight *
-      .92
-    );
-
-
-  const sx =
-    Math.round(
-      (
-        video.videoWidth -
-        sw
-      ) / 2
-    );
-
-
-  const sy =
-    Math.round(
-      (
-        video.videoHeight -
-        sh
-      ) / 2
-    );
-
-
-  return makeOcrCanvas(
-    video,
-    sx,
-    sy,
-    sw,
-    sh,
-    1.35
-  );
-}
-
-
-/*
- * Предобработка изображения.
- *
- * Не превращаем всё в жёсткий ч/б threshold:
- * тонкие буквы W/M/A/K так сохраняются лучше.
- */
-function makeOcrCanvas(
-  video,
-  sx,
-  sy,
-  sw,
-  sh,
-  scale
+function captureFrame(
+  fullFrame,
+  thresholdMode
 ) {
+  const video = getVideo();
+
+  if (!video) {
+    return null;
+  }
+
+  let sx;
+  let sy;
+  let sw;
+  let sh;
+
+  if (fullFrame) {
+    sw =
+      Math.round(
+        video.videoWidth *
+        .96
+      );
+
+    sh =
+      Math.round(
+        video.videoHeight *
+        .90
+      );
+
+    sx =
+      Math.round(
+        (
+          video.videoWidth -
+          sw
+        ) / 2
+      );
+
+    sy =
+      Math.round(
+        (
+          video.videoHeight -
+          sh
+        ) / 2
+      );
+  }
+
+  else {
+    /*
+     * Зона соответствует синей рамке.
+     */
+    sw =
+      Math.round(
+        video.videoWidth *
+        .92
+      );
+
+    sh =
+      Math.round(
+        video.videoHeight *
+        .43
+      );
+
+    sx =
+      Math.round(
+        (
+          video.videoWidth -
+          sw
+        ) / 2
+      );
+
+    sy =
+      Math.round(
+        video.videoHeight *
+        .285
+      );
+  }
+
+  /*
+   * Не даём canvas стать гигантским:
+   * на телефоне это сильно тормозит.
+   */
+  const maxWidth =
+    fullFrame
+      ? 1450
+      : 1650;
+
+  const scale =
+    Math.min(
+      1.65,
+      maxWidth / sw
+    );
 
   const canvas =
     document
-      .createElement(
-        'canvas'
-      );
-
+      .createElement('canvas');
 
   canvas.width =
     Math.max(
       1,
       Math.round(
-        sw *
-        scale
+        sw * scale
       )
     );
-
 
   canvas.height =
     Math.max(
       1,
       Math.round(
-        sh *
-        scale
+        sh * scale
       )
     );
 
-
   const ctx =
-    canvas
-      .getContext(
-        '2d',
-        {
-          willReadFrequently:
-            true
-        }
-      );
-
+    canvas.getContext(
+      '2d',
+      {
+        willReadFrequently: true
+      }
+    );
 
   ctx.drawImage(
-
     video,
-
     sx,
     sy,
     sw,
     sh,
-
     0,
     0,
     canvas.width,
     canvas.height
   );
 
+  preprocess(
+    ctx,
+    canvas.width,
+    canvas.height,
+    thresholdMode
+  );
 
+  return canvas;
+}
+
+
+function preprocess(
+  ctx,
+  width,
+  height,
+  thresholdMode
+) {
   try {
-
     const image =
       ctx.getImageData(
         0,
         0,
-        canvas.width,
-        canvas.height
+        width,
+        height
       );
-
 
     const d =
       image.data;
 
+    let sum = 0;
+    let count = 0;
 
+    /*
+     * Сначала считаем среднюю яркость.
+     */
+    if (thresholdMode) {
+      for (
+        let i = 0;
+        i < d.length;
+        i += 16
+      ) {
+        const gray =
+          d[i] * .299 +
+          d[i + 1] * .587 +
+          d[i + 2] * .114;
+
+        sum += gray;
+        count++;
+      }
+    }
+
+    const mean =
+      count
+        ? sum / count
+        : 128;
+
+    /*
+     * Потом преобразуем изображение.
+     */
     for (
       let i = 0;
       i < d.length;
       i += 4
     ) {
-
       const gray =
         d[i] * .299 +
         d[i + 1] * .587 +
         d[i + 2] * .114;
 
+      let value;
 
-      /*
-       * Умеренный контраст —
-       * не уничтожаем тонкие буквы.
-       */
-      let value =
-        (
-          gray -
-          128
-        ) *
-        1.24 +
-        128;
+      if (thresholdMode) {
+        /*
+         * Ч/б вариант хорошо читает
+         * чёрные буквы на белых этикетках.
+         */
+        const threshold =
+          Math.max(
+            80,
+            Math.min(
+              190,
+              mean * .92
+            )
+          );
 
+        value =
+          gray >= threshold
+            ? 255
+            : 0;
+      }
 
-      value =
-        Math.max(
-          0,
-          Math.min(
-            255,
-            value
-          )
-        );
+      else {
+        /*
+         * Мягкий серый вариант сохраняет
+         * тонкие буквы и плохую печать.
+         */
+        value =
+          (
+            gray -
+            128
+          ) *
+          1.28 +
+          128;
 
+        value =
+          Math.max(
+            0,
+            Math.min(
+              255,
+              value
+            )
+          );
+      }
 
-      d[i] =
-        value;
-
-
-      d[i + 1] =
-        value;
-
-
-      d[i + 2] =
-        value;
+      d[i] = value;
+      d[i + 1] = value;
+      d[i + 2] = value;
     }
-
 
     ctx.putImageData(
       image,
       0,
       0
     );
-
   }
 
   catch(e) {}
-
-
-  return canvas;
 }
 
 
-async function scanArticleText() {
+/* =========================================================
+   MATCHING
+========================================================= */
 
-  if (
-    !ocrReady ||
-    ocrBusy ||
-    serverBusy
-  ) {
-
-    return;
-  }
+let aliasOwnerCount = {};
 
 
-  if (
-    Date.now() <
-    cooldownUntil
-  ) {
+function prepareAliasOwners() {
+  aliasOwnerCount = {};
 
-    return;
-  }
+  catalog.forEach(function(item) {
+    (item.aliases || [])
+      .forEach(function(alias) {
+        const a =
+          normalize(alias);
 
+        if (!a) {
+          return;
+        }
 
-  ocrBusy =
-    true;
+        if (!aliasOwnerCount[a]) {
+          aliasOwnerCount[a] =
+            new Set();
+        }
 
-
-  ocrPass++;
-
-
-  try {
-
-    /*
-     * 3 раза быстро смотрим синюю рамку.
-     * 4-й раз — весь кадр.
-     */
-    const fullPass =
-      ocrPass %
-      4 === 0;
-
-
-    let canvas;
-
-
-    if (
-      fullPass
-    ) {
-
-      await setSparseMode();
-
-      canvas =
-        captureFullFrame();
-
-
-      setOcrState(
-        'OCR: весь кадр'
-      );
-    }
-
-
-    else {
-
-      await setLineMode();
-
-      canvas =
-        captureArticleStrip();
-
-
-      setOcrState(
-        'OCR: буквы + цифры'
-      );
-    }
-
-
-    if (!canvas) {
-      return;
-    }
-
-
-    const result =
-      await ocrWorker
-        .recognize(
-          canvas
-        );
-
-
-    const text =
-      result &&
-      result.data
-        ? (
-            result.data.text ||
-            ''
-          )
-        : '';
-
-
-    /*
-     * Видно, что реально прочитал Tesseract.
-     * Это помогает сразу понять,
-     * видит ли камера буквы.
-     */
-    showOcrText(
-      text
-    );
-
-
-    const match =
-      findBestArticle(
-        text
-      );
-
-
-    if (!match) {
-      return;
-    }
-
-
-    const now =
-      Date.now();
-
-
-    if (
-      match.article ===
-        lastAcceptedArticle &&
-      now -
-        lastAcceptedArticleTime
-      <
-      1700
-    ) {
-
-      return;
-    }
-
-
-    lastAcceptedArticle =
-      match.article;
-
-
-    lastAcceptedArticleTime =
-      now;
-
-
-    acceptRecognizedArticle(
-      match
-    );
-
-  }
-
-  catch(err) {
-
-    console.log(
-      'OCR',
-      err
-    );
-
-  }
-
-  finally {
-
-    ocrBusy =
-      false;
-
-
-    if (
-      ocrReady
-    ) {
-
-      setOcrState(
-        'OCR: готов'
-      );
-    }
-  }
+        aliasOwnerCount[a]
+          .add(item.productKey);
+      });
+  });
 }
 
 
-async function acceptRecognizedArticle(
-  match
-) {
-
-  if (
-    serverBusy
-  ) {
-    return;
-  }
-
-
-  serverBusy =
-    true;
-
-
-  setStatus(
-
-    '🔍 Найден артикул:<br><b>' +
-    escapeHtml(
-      match.article
-    ) +
-    '</b><br>' +
-    escapeHtml(
-      match.name
-    ) +
-    '<br><br>' +
-    'Автоматически принимаю +1…',
-
-    'search'
-  );
-
-
-  try {
-
-    let response;
-
-
-    if (
-      pendingBarcode
-    ) {
-
-      response =
-        await api(
-          'bind',
-          {
-            barcode:
-              pendingBarcode,
-
-            article:
-              match.article
-          }
-        );
-    }
-
-
-    else {
-
-      response =
-        await api(
-          'ocr',
-          {
-            article:
-              match.article
-          }
-        );
-    }
-
-
-    handleResult(
-      response.result
-    );
-
-  }
-
-  catch(err) {
-
-    serverBusy =
-      false;
-
-
-    showError(
-      err
-    );
-  }
-}
-
-
-/* =====================================================
-   СОПОСТАВЛЕНИЕ OCR -> АРТИКУЛ
-===================================================== */
-
-function normalize(
-  value
-) {
-
-  return String(
-    value || ''
-  )
+function normalize(value) {
+  return String(value || '')
     .toUpperCase()
+    .replace(/Ё/g, 'Е')
     .replace(
       /[^A-ZА-Я0-9]/g,
       ''
@@ -1481,546 +1052,666 @@ function normalize(
 
 
 /*
- * Типичные ошибки OCR на артикулах:
- *
- * O/Q ↔ 0
- * I/L ↔ 1
- * Z ↔ 2
- * S ↔ 5
- * B ↔ 8
- * G ↔ 6
- *
- * Канонизация применяется и к OCR,
- * и к каталогу — реальные артикулы
- * в таблице при этом НЕ изменяются.
+ * Только для сравнения смешанных кодов.
+ * Реальный артикул в таблице НЕ меняется.
  */
-function canonical(
-  value
-) {
-
-  return normalize(
-    value
-  )
-    .replace(
-      /[OQ]/g,
-      '0'
-    )
-    .replace(
-      /[IL]/g,
-      '1'
-    )
-    .replace(
-      /Z/g,
-      '2'
-    )
-    .replace(
-      /S/g,
-      '5'
-    )
-    .replace(
-      /B/g,
-      '8'
-    )
-    .replace(
-      /G/g,
-      '6'
-    );
+function confusionCanonical(value) {
+  return normalize(value)
+    .replace(/[OОQ]/g, '0')
+    .replace(/[IIL]/g, '1')
+    .replace(/Z/g, '2')
+    .replace(/S/g, '5')
+    .replace(/B/g, '8')
+    .replace(/G/g, '6');
 }
 
 
-function numericKey(
-  value
-) {
-
-  const s =
-    normalize(
-      value
-    );
-
-
-  if (
-    /^\d+$/.test(
-      s
-    )
-  ) {
-
-    return s.replace(
-      /^0+(?=\d)/,
-      ''
-    );
-  }
-
-
-  return s;
+function hasDigit(value) {
+  return /\d/.test(
+    String(value || '')
+  );
 }
 
 
-function getCandidates(
-  text
-) {
-
+function ocrCandidates(text) {
   const raw =
-    String(
-      text || ''
-    )
+    String(text || '')
       .toUpperCase()
       .replace(
-        /[^A-ZА-Я0-9\-./\s]/g,
+        /[^A-ZА-ЯЁ0-9\-./_\s]/g,
         ' '
       );
 
-
-  const tokens =
+  const lines =
     raw
-      .split(/\s+/)
-      .map(
-        normalize
-      )
-      .filter(
-        Boolean
-      );
+      .split(/\n+/)
+      .map(function(x) {
+        return x.trim();
+      })
+      .filter(Boolean);
 
-
-  const result =
+  const set =
     new Set();
 
+  function add(value) {
+    const n =
+      normalize(value);
 
-  for (
-    let i = 0;
-    i < tokens.length;
-    i++
-  ) {
-
-    /*
-     * OCR может разбить W338738SA
-     * как W338 738 SA.
-     *
-     * Поэтому склеиваем до 4 соседних частей.
-     */
-    for (
-      let count = 1;
-      count <= 4;
-      count++
-    ) {
-
-      if (
-        i + count >
-        tokens.length
-      ) {
-        break;
-      }
-
-
-      const joined =
-        tokens
-          .slice(
-            i,
-            i + count
-          )
-          .join('');
-
-
-      if (
-        joined.length >= 3
-      ) {
-
-        result.add(
-          joined
-        );
-      }
+    if (n.length >= 2) {
+      set.add(n);
     }
   }
 
+  lines.forEach(function(line) {
+    add(line);
+
+    const tokens =
+      line
+        .split(/\s+/)
+        .map(normalize)
+        .filter(Boolean);
+
+    tokens.forEach(add);
+
+    /*
+     * Tesseract может разбить:
+     * W338738SA
+     * на W338 738 SA.
+     */
+    for (
+      let i = 0;
+      i < tokens.length;
+      i++
+    ) {
+      for (
+        let count = 2;
+        count <= 6;
+        count++
+      ) {
+        if (
+          i + count >
+          tokens.length
+        ) {
+          break;
+        }
+
+        add(
+          tokens
+            .slice(
+              i,
+              i + count
+            )
+            .join('')
+        );
+      }
+    }
+  });
+
+  /*
+   * Весь OCR-текст без пробелов.
+   */
+  add(raw);
 
   return [
-    ...result
+    ...set
   ];
 }
 
 
-function findBestArticle(
-  text
-) {
-
-  if (
-    !text ||
-    !catalog.length
-  ) {
-
-    return null;
-  }
-
-
+function findBestMatch(text) {
   const candidates =
-    getCandidates(
-      text
-    );
+    ocrCandidates(text);
 
-
-  if (
-    !candidates.length
-  ) {
-
+  if (!candidates.length) {
     return null;
   }
 
+  const results = [];
 
-  let scored =
-    [];
+  catalog.forEach(function(item) {
+    let bestScore = 0;
+    let bestAlias = '';
+    let exactUnique = false;
 
+    (item.aliases || [])
+      .forEach(function(aliasRaw) {
+        const alias =
+          normalize(aliasRaw);
 
-  catalog.forEach(
-    function(item) {
-
-      const article =
-        normalize(
-          item.article
-        );
-
-
-      if (!article) {
-        return;
-      }
-
-
-      let bestScore =
-        0;
-
-
-      candidates.forEach(
-        function(candidate) {
-
-          const c =
-            normalize(
-              candidate
-            );
-
-
-          /*
-           * 1. Абсолютно точное совпадение.
-           */
-          if (
-            c === article
-          ) {
-
-            bestScore =
-              Math.max(
-                bestScore,
-                1
-              );
-
-            return;
-          }
-
-
-          /*
-           * 2. Только цифры:
-           * 04572 == 4572.
-           */
-          if (
-            /^\d+$/.test(
-              article
-            )
-            &&
-            /^\d+$/.test(
-              c
-            )
-          ) {
-
-            if (
-              numericKey(
-                article
-              )
-              ===
-              numericKey(
-                c
-              )
-            ) {
-
-              bestScore =
-                Math.max(
-                  bestScore,
-                  .995
-                );
-            }
-
-
-            return;
-          }
-
-
-          /*
-           * 3. Буквенно-цифровой код
-           * с типичными OCR-подменами.
-           *
-           * Например:
-           * W338738SA
-           * W3387385A
-           */
-          const ac =
-            canonical(
-              article
-            );
-
-
-          const cc =
-            canonical(
-              c
-            );
-
-
-          if (
-            ac === cc
-          ) {
-
-            bestScore =
-              Math.max(
-                bestScore,
-                .985
-              );
-
-            return;
-          }
-
-
-          /*
-           * 4. Код попал внутрь лишнего текста.
-           */
-          if (
-            cc.includes(
-              ac
-            )
-            ||
-            ac.includes(
-              cc
-            )
-          ) {
-
-            const ratio =
-              Math.min(
-                ac.length,
-                cc.length
-              )
-              /
-              Math.max(
-                ac.length,
-                cc.length
-              );
-
-
-            if (
-              ratio >= .82
-            ) {
-
-              bestScore =
-                Math.max(
-                  bestScore,
-                  .95 *
-                  ratio
-                );
-            }
-          }
-
-
-          /*
-           * 5. Одна-две ошибки OCR.
-           *
-           * Для слишком коротких кодов
-           * нечёткое сравнение не используем.
-           */
-          if (
-            article.length >= 5
-            &&
-            c.length >= 5
-            &&
-            Math.abs(
-              ac.length -
-              cc.length
-            ) <= 2
-          ) {
-
-            const distance =
-              levenshtein(
-                ac,
-                cc
-              );
-
-
-            const maxEdits =
-              Math.max(
-                ac.length,
-                cc.length
-              ) >= 10
-                ? 2
-                : 1;
-
-
-            if (
-              distance <=
-              maxEdits
-            ) {
-
-              const similarity =
-                1 -
-                distance /
-                Math.max(
-                  ac.length,
-                  cc.length
-                );
-
-
-              bestScore =
-                Math.max(
-                  bestScore,
-                  similarity
-                );
-            }
-          }
+        if (!alias) {
+          return;
         }
-      );
 
+        candidates.forEach(
+          function(candidate) {
+            let score = 0;
+            let isExact = false;
 
-      if (
-        bestScore > 0
-      ) {
+            /*
+             * 1. Точное совпадение:
+             * подходит буквам, цифрам и смешанным кодам.
+             */
+            if (candidate === alias) {
+              const owners =
+                aliasOwnerCount[alias];
 
-        scored.push({
-          article:
-            item.article,
+              /*
+               * Автоматически доверяем точному алиасу
+               * только если он принадлежит одному товару.
+               */
+              if (
+                owners &&
+                owners.size === 1
+              ) {
+                score = 1;
+                isExact = true;
+              }
+            }
 
-          name:
-            item.name,
+            /*
+             * 2. O/0, I/1, S/5 и т.д.
+             * Используем только если в коде есть цифры,
+             * чтобы чисто буквенные артикулы не превращать
+             * в ложные числа.
+             */
+            if (
+              score < 1 &&
+              (
+                hasDigit(alias) ||
+                hasDigit(candidate)
+              )
+            ) {
+              if (
+                confusionCanonical(candidate)
+                ===
+                confusionCanonical(alias)
+              ) {
+                score =
+                  Math.max(
+                    score,
+                    .985
+                  );
+              }
+            }
 
-          score:
-            bestScore
-        });
-      }
+            /*
+             * 3. Артикул попал внутрь лишнего OCR-текста.
+             */
+            if (
+              alias.length >= 4 &&
+              candidate.length >= 4
+            ) {
+              if (
+                candidate.includes(alias) ||
+                alias.includes(candidate)
+              ) {
+                const ratio =
+                  Math.min(
+                    alias.length,
+                    candidate.length
+                  )
+                  /
+                  Math.max(
+                    alias.length,
+                    candidate.length
+                  );
+
+                if (ratio >= .84) {
+                  score =
+                    Math.max(
+                      score,
+                      .94 * ratio
+                    );
+                }
+              }
+            }
+
+            /*
+             * 4. Одна OCR-ошибка.
+             * Для длинных кодов допускаем две.
+             */
+            if (
+              alias.length >= 5 &&
+              candidate.length >= 5 &&
+              Math.abs(
+                alias.length -
+                candidate.length
+              ) <= 2
+            ) {
+              const a =
+                (
+                  hasDigit(alias) ||
+                  hasDigit(candidate)
+                )
+                  ? confusionCanonical(alias)
+                  : alias;
+
+              const b =
+                (
+                  hasDigit(alias) ||
+                  hasDigit(candidate)
+                )
+                  ? confusionCanonical(candidate)
+                  : candidate;
+
+              const dist =
+                levenshtein(a, b);
+
+              const maxEdits =
+                Math.max(
+                  a.length,
+                  b.length
+                ) >= 10
+                  ? 2
+                  : 1;
+
+              if (dist <= maxEdits) {
+                const similarity =
+                  1 -
+                  dist /
+                  Math.max(
+                    a.length,
+                    b.length
+                  );
+
+                score =
+                  Math.max(
+                    score,
+                    similarity
+                  );
+              }
+            }
+
+            /*
+             * Если score одинаковый,
+             * более длинный алиас надёжнее.
+             */
+            if (
+              score > bestScore ||
+              (
+                score === bestScore &&
+                alias.length >
+                bestAlias.length
+              )
+            ) {
+              bestScore = score;
+              bestAlias = alias;
+              exactUnique = isExact;
+            }
+          }
+        );
+      });
+
+    if (bestScore > 0) {
+      results.push({
+        productKey: item.productKey,
+        name: item.name,
+        expected: Number(item.expected || 0),
+        accepted: Number(item.accepted || 0),
+        score: bestScore,
+        aliasLength: bestAlias.length,
+        exactUnique: exactUnique
+      });
     }
-  );
+  });
 
-
-  if (
-    !scored.length
-  ) {
-
+  if (!results.length) {
     return null;
   }
 
-
-  scored.sort(
-    function(a, b) {
-
-      return (
-        b.score -
-        a.score
-      );
+  results.sort(function(a, b) {
+    if (b.score !== a.score) {
+      return b.score - a.score;
     }
-  );
 
+    return (
+      b.aliasLength -
+      a.aliasLength
+    );
+  });
 
   const best =
-    scored[0];
-
+    results[0];
 
   const second =
-    scored.length > 1
-      ? scored[1]
+    results.length > 1
+      ? results[1]
       : null;
 
-
   /*
-   * Не красим товар по слабой догадке.
+   * Слабые догадки не принимаем.
    */
-  if (
-    best.score < .88
-  ) {
-
+  if (best.score < .87) {
     return null;
   }
 
-
   /*
-   * Если два артикула почти одинаково похожи,
+   * Два почти одинаковых товара:
    * ждём более чистого кадра.
    */
   if (
     second &&
-    best.article !==
-      second.article &&
-    best.score <
-      .99 &&
+    second.productKey !==
+      best.productKey &&
+    best.score < .995 &&
     best.score -
       second.score
-    <
-    .045
+    < .05
   ) {
-
     return null;
   }
-
 
   return best;
 }
 
 
-function levenshtein(
-  a,
-  b
-) {
+function processOcrText(text) {
+  const best =
+    findBestMatch(text);
 
-  const m =
-    a.length;
+  /*
+   * После принятия того же физического товара
+   * ждём, пока он исчезнет из кадра.
+   */
+  if (blockedKey) {
+    if (
+      best &&
+      best.productKey ===
+        blockedKey
+    ) {
+      blockedMisses = 0;
+
+      setStatus(
+        '✅ Этот товар уже принят.<br><br>' +
+        '<b>Убери его из кадра и покажи следующий.</b>',
+        'ok'
+      );
+
+      return;
+    }
+
+    /*
+     * Если показали уже другой артикул,
+     * предыдущий товар точно убран.
+     */
+    if (
+      best &&
+      best.productKey !==
+        blockedKey
+    ) {
+      blockedKey = '';
+      blockedMisses = 0;
+    }
+
+    else {
+      blockedMisses++;
+
+      if (
+        blockedMisses < 2
+      ) {
+        return;
+      }
+
+      blockedKey = '';
+      blockedMisses = 0;
+    }
+  }
+
+  if (!best) {
+    candidateKey = '';
+    candidateHits = 0;
+    return;
+  }
+
+  /*
+   * Уникальное точное совпадение принимаем сразу.
+   *
+   * Нечёткое совпадение должен подтвердить
+   * следующий OCR-кадр.
+   */
+  if (
+    best.exactUnique &&
+    best.score >= .999
+  ) {
+    acceptDetected(best);
+    return;
+  }
+
+  const now =
+    Date.now();
+
+  if (
+    candidateKey ===
+      best.productKey &&
+    now -
+      candidateAt
+    < 3500
+  ) {
+    candidateHits++;
+  }
+
+  else {
+    candidateKey =
+      best.productKey;
+
+    candidateHits = 1;
+  }
+
+  candidateAt = now;
+
+  setStatus(
+    '🔎 Похоже на:<br>' +
+    '<span class="detected">' +
+    escapeHtml(best.name) +
+    '</span><br><br>' +
+    'Подтверждаю ещё одним кадром…',
+    'search'
+  );
+
+  if (
+    candidateHits >= 2
+  ) {
+    acceptDetected(best);
+  }
+}
 
 
-  const n =
-    b.length;
+async function acceptDetected(item) {
+  if (serverBusy) {
+    return;
+  }
 
+  serverBusy = true;
+
+  candidateKey = '';
+  candidateHits = 0;
+
+  setStatus(
+    '✅ Артикул найден:<br>' +
+    '<span class="detected">' +
+    escapeHtml(item.name) +
+    '</span><br><br>' +
+    'Принимаю 1 шт…',
+    'search'
+  );
+
+  try {
+    const response =
+      await api(
+        'accept',
+        {
+          productKey:
+            item.productKey
+        }
+      );
+
+    handleAcceptResult(
+      response.result
+    );
+  }
+
+  catch(err) {
+    serverBusy = false;
+
+    setStatus(
+      '❌ ' +
+      escapeHtml(
+        err.message ||
+        String(err)
+      ),
+      'bad'
+    );
+  }
+}
+
+
+function handleAcceptResult(res) {
+  serverBusy = false;
+
+  if (!res) {
+    return;
+  }
+
+  if (res.summary) {
+    updateSummary(
+      res.summary
+    );
+  }
+
+  if (
+    res.type === 'complete' ||
+    res.type === 'partial'
+  ) {
+    /*
+     * Обновляем локальное количество.
+     */
+    const item =
+      catalog.find(
+        function(x) {
+          return (
+            x.productKey ===
+            res.productKey
+          );
+        }
+      );
+
+    if (item) {
+      item.accepted =
+        Number(
+          res.accepted || 0
+        );
+    }
+
+    blockedKey =
+      res.productKey;
+
+    blockedMisses = 0;
+
+    const complete =
+      res.type ===
+      'complete';
+
+    setStatus(
+      (complete ? '✅ ' : '🟡 ') +
+      '<b>' +
+      escapeHtml(res.name) +
+      '</b><br><br>' +
+      'Принято: <b>' +
+      res.accepted +
+      '</b> из ' +
+      res.expected +
+      '<br>' +
+      'Осталось: <b>' +
+      res.remaining +
+      '</b><br><br>' +
+      (
+        complete
+          ? 'Все единицы этого артикула приняты.'
+          : 'Убери этот товар из кадра и покажи следующую единицу.'
+      ),
+      complete
+        ? 'ok'
+        : 'warn'
+    );
+
+    vibrate(
+      [70,45,70]
+    );
+
+    return;
+  }
+
+  if (res.type === 'extra') {
+    blockedKey =
+      res.productKey;
+
+    blockedMisses = 0;
+
+    setStatus(
+      '⚠️ <b>По этому артикулу всё количество уже принято.</b><br><br>' +
+      escapeHtml(res.name) +
+      '<br>' +
+      res.accepted +
+      ' из ' +
+      res.expected,
+      'bad'
+    );
+
+    vibrate(
+      [180,60,180]
+    );
+
+    return;
+  }
+
+  if (res.type === 'not_found') {
+    setStatus(
+      '❌ Этот товар больше не найден в таблице. Обнови страницу сканера.',
+      'bad'
+    );
+  }
+}
+
+
+/* =========================================================
+   LEVENSHTEIN
+========================================================= */
+
+function levenshtein(a, b) {
+  const m = a.length;
+  const n = b.length;
 
   const prev =
-    new Array(
-      n + 1
-    );
-
+    new Array(n + 1);
 
   const curr =
-    new Array(
-      n + 1
-    );
-
+    new Array(n + 1);
 
   for (
     let j = 0;
     j <= n;
     j++
   ) {
-
-    prev[j] =
-      j;
+    prev[j] = j;
   }
-
 
   for (
     let i = 1;
     i <= m;
     i++
   ) {
-
-    curr[0] =
-      i;
-
+    curr[0] = i;
 
     for (
       let j = 1;
       j <= n;
       j++
     ) {
-
       const cost =
         a[i - 1] ===
         b[j - 1]
           ? 0
           : 1;
-
 
       curr[j] =
         Math.min(
@@ -2030,519 +1721,131 @@ function levenshtein(
         );
     }
 
-
     for (
       let j = 0;
       j <= n;
       j++
     ) {
-
-      prev[j] =
-        curr[j];
+      prev[j] = curr[j];
     }
   }
-
 
   return prev[n];
 }
 
 
-/* =====================================================
-   РЕЗУЛЬТАТ
-===================================================== */
-
-function updateCatalogFromResult(
-  res
-) {
-
-  if (
-    !res ||
-    !res.article ||
-    typeof res.accepted ===
-      'undefined'
-  ) {
-
-    return;
-  }
-
-
-  const item =
-    catalog.find(
-      function(x) {
-
-        return (
-          normalize(
-            x.article
-          )
-          ===
-          normalize(
-            res.article
-          )
-        );
-      }
-    );
-
-
-  if (!item) {
-    return;
-  }
-
-
-  item.accepted =
-    Number(
-      res.accepted || 0
-    );
-
-
-  if (
-    typeof res.expected !==
-      'undefined'
-  ) {
-
-    item.expected =
-      Number(
-        res.expected || 0
-      );
-  }
-}
-
-
-function handleResult(
-  res
-) {
-
-  serverBusy =
-    false;
-
-
-  if (!res) {
-    return;
-  }
-
-
-  if (
-    res.summary
-  ) {
-
-    updateSummary(
-      res.summary
-    );
-  }
-
-
-  updateCatalogFromResult(
-    res
-  );
-
-
-  if (
-    res.type ===
-    'unknown'
-  ) {
-
-    pendingBarcode =
-      res.barcode;
-
-
-    setStatus(
-
-      '📦 EAN считан:<br><b>' +
-      escapeHtml(
-        res.barcode
-      ) +
-      '</b><br><br>' +
-      'Теперь наведи буквенно-цифровой артикул в синюю рамку.',
-
-      'warn'
-    );
-
-
-    return;
-  }
-
-
-  if (
-    res.type ===
-      'complete'
-    ||
-    res.type ===
-      'partial'
-  ) {
-
-    const complete =
-      res.type ===
-      'complete';
-
-
-    setStatus(
-
-      (
-        complete
-          ? '✅ '
-          : '🟡 '
-      )
-      +
-      '<b>' +
-      escapeHtml(
-        res.name
-      ) +
-      '</b><br><br>' +
-      'Артикул: <b>' +
-      escapeHtml(
-        res.article
-      ) +
-      '</b><br>' +
-      'Нужно: ' +
-      res.expected +
-      '<br>' +
-      'Принято: <b>' +
-      res.accepted +
-      '</b><br>' +
-      'Осталось: <b>' +
-      res.remaining +
-      '</b>',
-
-      complete
-        ? 'ok'
-        : 'warn'
-    );
-
-
-    pendingBarcode =
-      '';
-
-
-    /*
-     * Короткая защита
-     * от повторного считывания
-     * этой же коробки.
-     */
-    cooldownUntil =
-      Date.now() +
-      1500;
-
-
-    vibrate(
-      [80,50,80]
-    );
-
-
-    return;
-  }
-
-
-  if (
-    res.type ===
-    'extra'
-  ) {
-
-    setStatus(
-
-      '⚠️ <b>ЛИШНЯЯ ЕДИНИЦА</b><br><br>' +
-      escapeHtml(
-        res.name
-      ) +
-      '<br>Уже принято: ' +
-      res.accepted +
-      ' из ' +
-      res.expected,
-
-      'bad'
-    );
-
-
-    pendingBarcode =
-      '';
-
-
-    cooldownUntil =
-      Date.now() +
-      1900;
-
-
-    return;
-  }
-
-
-  if (
-    res.type ===
-    'conflict'
-  ) {
-
-    setStatus(
-
-      '❌ Конфликт штрихкода.<br>' +
-      'EAN уже привязан к <b>' +
-      escapeHtml(
-        res.mappedArticle
-      ) +
-      '</b>.',
-
-      'bad'
-    );
-
-
-    pendingBarcode =
-      '';
-
-
-    return;
-  }
-
-
-  if (
-    res.type ===
-    'not_found'
-  ) {
-
-    setStatus(
-
-      '❌ Распознанный артикул отсутствует в каталоге приёмки.',
-
-      'bad'
-    );
-
-
-    return;
-  }
-}
-
-
-/* =====================================================
+/* =========================================================
    UI
-===================================================== */
+========================================================= */
 
-function updateSummary(
-  data
-) {
-
+function updateSummary(data) {
   if (!data) {
     return;
   }
 
-
   document
-    .getElementById(
-      'accepted'
-    )
+    .getElementById('accepted')
     .textContent =
     data.accepted;
 
-
   document
-    .getElementById(
-      'expected'
-    )
+    .getElementById('expected')
     .textContent =
     data.expected;
 
-
   document
-    .getElementById(
-      'remaining'
-    )
+    .getElementById('remaining')
     .textContent =
     data.remaining;
 }
 
 
-function setStatus(
-  html,
-  type
-) {
-
+function setStatus(html, type) {
   document
-    .getElementById(
-      'statusCard'
-    )
+    .getElementById('statusCard')
     .className =
-    'card ' +
-    type;
-
+    'card ' + type;
 
   document
-    .getElementById(
-      'status'
-    )
+    .getElementById('status')
     .innerHTML =
     html;
 }
 
 
-function setOcrState(
-  text
-) {
-
-  const el =
-    document
-      .getElementById(
-        'ocrState'
-      );
-
-
-  if (el) {
-
-    el.textContent =
-      text;
-  }
+function setOcrBadge(text) {
+  document
+    .getElementById('ocrBadge')
+    .textContent =
+    text;
 }
 
 
-function showOcrText(
-  text
-) {
-
+function showSeen(text) {
   const cleaned =
-    String(
-      text || ''
-    )
-      .replace(
-        /\s+/g,
-        ' '
-      )
+    String(text || '')
+      .replace(/\s+/g, ' ')
       .trim()
-      .slice(
-        0,
-        140
-      );
+      .slice(0, 180);
 
-
-  const el =
-    document
-      .getElementById(
-        'ocrSeen'
-      );
-
-
-  if (!cleaned) {
-
-    el.textContent =
-      'OCR видит: —';
-
-    return;
-  }
-
-
-  el.textContent =
-    'OCR видит: ' +
-    cleaned;
+  document
+    .getElementById('seen')
+    .textContent =
+    cleaned
+      ? 'OCR видит: ' + cleaned
+      : 'OCR видит: —';
 }
 
 
-function showError(
-  error
-) {
-
-  serverBusy =
-    false;
-
-
-  setStatus(
-
-    '❌ ' +
-    escapeHtml(
-      error.message ||
-      String(error)
-    ),
-
-    'bad'
-  );
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 
-function escapeHtml(
-  value
-) {
-
-  return String(
-    value || ''
-  )
-    .replace(
-      /&/g,
-      '&amp;'
-    )
-    .replace(
-      /</g,
-      '&lt;'
-    )
-    .replace(
-      />/g,
-      '&gt;'
-    )
-    .replace(
-      /"/g,
-      '&quot;'
-    )
-    .replace(
-      /'/g,
-      '&#039;'
-    );
-}
-
-
-function vibrate(
-  pattern
-) {
-
+function vibrate(pattern) {
   try {
-
-    navigator.vibrate(
-      pattern
-    );
-
-  }
-
-  catch(e) {}
+    navigator.vibrate(pattern);
+  } catch(e) {}
 }
 
 
-/* =====================================================
+/* =========================================================
    AUTO LOGIN
-===================================================== */
+========================================================= */
 
 window.onload =
   async function() {
-
     if (!accessPin) {
       return;
     }
 
-
     document
-      .getElementById(
-        'pin'
-      )
+      .getElementById('pin')
       .value =
       accessPin;
 
-
     try {
-
       const response =
-        await api(
-          'init'
-        );
-
+        await api('init');
 
       initApp(
         response.data
       );
-
     }
 
     catch(err) {
+      localStorage.removeItem(
+        'warehousePin'
+      );
 
-      localStorage
-        .removeItem(
-          'warehousePin'
-        );
-
-
-      accessPin =
-        '';
+      accessPin = '';
     }
   };
-
 </script>
 </body>
 </html>
