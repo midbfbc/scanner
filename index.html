@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Приёмка — сканер этикетки</title>
+<title>Приёмка РИМС</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
@@ -16,8 +16,16 @@ body{margin:0;background:#0f172a;color:#fff;font-family:Arial,sans-serif}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;gap:8px}
 .num{font-size:26px;font-weight:700}
 .label{font-size:12px;color:#cbd5e1}
-input{width:100%;border:0;border-radius:10px;padding:15px;font-size:18px;background:#fff;color:#111827}
-button{width:100%;border:0;border-radius:10px;padding:14px;font-size:17px;font-weight:700;margin-top:8px}
+input,select{
+  width:100%;border:0;border-radius:10px;padding:14px;font-size:16px;
+  background:#fff;color:#111827
+}
+select{margin-top:8px}
+button{
+  width:100%;border:0;border-radius:10px;padding:14px;font-size:17px;
+  font-weight:700;margin-top:8px
+}
+button:disabled{opacity:.45}
 .blue{background:#2563eb;color:#fff}
 .ok{background:#14532d;border:2px solid #22c55e}
 .warn{background:#78350f;border:2px solid #f59e0b}
@@ -26,66 +34,39 @@ button{width:100%;border:0;border-radius:10px;padding:14px;font-size:17px;font-w
 .hidden{display:none!important}
 .small{font-size:12px;color:#cbd5e1;line-height:1.5}
 .status{min-height:78px;line-height:1.5}
+.product{font-size:20px;font-weight:700}
 
 .camera-card{padding:8px}
 .camera-wrap{
-  position:relative;
-  width:100%;
-  border-radius:13px;
-  overflow:hidden;
-  background:#000
+  position:relative;width:100%;border-radius:13px;overflow:hidden;background:#000
 }
 #video{
-  display:block;
-  width:100%;
-  min-height:260px;
-  background:#000;
-  object-fit:cover
+  display:block;width:100%;min-height:260px;background:#000;object-fit:cover
 }
 #frame{
-  position:absolute;
-  left:3%;
-  top:5%;
-  width:94%;
-  height:90%;
-  border:3px solid #3b82f6;
-  border-radius:12px;
-  pointer-events:none;
+  position:absolute;left:3%;top:5%;width:94%;height:90%;
+  border:3px solid #3b82f6;border-radius:12px;pointer-events:none;
   box-shadow:0 0 0 9999px rgba(0,0,0,.08)
 }
 #frame::before{
   content:"ЭТИКЕТКА ЦЕЛИКОМ";
-  position:absolute;
-  top:8px;
-  left:50%;
-  transform:translateX(-50%);
-  background:#2563eb;
-  padding:5px 10px;
-  border-radius:7px;
-  font-size:12px;
-  font-weight:700;
-  white-space:nowrap
+  position:absolute;top:8px;left:50%;transform:translateX(-50%);
+  background:#2563eb;padding:5px 10px;border-radius:7px;
+  font-size:12px;font-weight:700;white-space:nowrap
 }
 #ocrBadge{
-  position:absolute;
-  right:8px;
-  bottom:8px;
-  z-index:3;
-  background:rgba(15,23,42,.86);
-  padding:5px 8px;
-  border-radius:7px;
-  font-size:11px;
-  color:#dbeafe
+  position:absolute;right:8px;bottom:8px;z-index:3;
+  background:rgba(15,23,42,.86);padding:5px 8px;border-radius:7px;
+  font-size:11px;color:#dbeafe
 }
 #seen{
-  margin-top:8px;
-  padding:6px 4px 2px;
-  color:#94a3b8;
-  font-size:11px;
-  line-height:1.35;
-  word-break:break-word
+  margin-top:8px;padding:6px 4px 2px;color:#94a3b8;
+  font-size:11px;line-height:1.35;word-break:break-word
 }
-.product{font-size:20px;font-weight:700}
+.batch-note{
+  padding:10px;border-radius:10px;background:#0f172a;
+  margin-top:10px;font-size:13px;line-height:1.45
+}
 </style>
 </head>
 
@@ -93,7 +74,7 @@ button{width:100%;border:0;border-radius:10px;padding:14px;font-size:17px;font-w
 <div class="wrap">
 
 <div id="login" class="card">
-  <div class="title">📦 Приёмка товара</div>
+  <div class="title">📦 Приёмка РИМС</div>
   <div class="small">PIN</div>
   <input id="pin" type="password" inputmode="numeric" placeholder="PIN">
   <button class="blue" onclick="login()">ВОЙТИ</button>
@@ -102,16 +83,30 @@ button{width:100%;border:0;border-radius:10px;padding:14px;font-size:17px;font-w
 <div id="app" class="hidden">
 
   <div class="card">
+    <div class="title">Выбери поставку</div>
+    <div id="sheetName" class="small"></div>
+
+    <select id="batchSelect" onchange="selectBatch()">
+      <option value="">— магазин / дата —</option>
+    </select>
+
+    <div id="batchInfo" class="batch-note hidden"></div>
+  </div>
+
+  <div id="statsCard" class="card hidden">
     <div id="shipment" class="title">📦 Приёмка</div>
+
     <div class="stats">
       <div>
         <div id="accepted" class="num">0</div>
         <div class="label">принято</div>
       </div>
+
       <div>
         <div id="expected" class="num">0</div>
         <div class="label">ожидается</div>
       </div>
+
       <div>
         <div id="remaining" class="num">0</div>
         <div class="label">осталось</div>
@@ -120,7 +115,12 @@ button{width:100%;border:0;border-radius:10px;padding:14px;font-size:17px;font-w
   </div>
 
   <div class="card">
-    <button id="startBtn" class="blue" onclick="startScanner()">
+    <button
+      id="startBtn"
+      class="blue"
+      onclick="startScanner()"
+      disabled
+    >
       📷 ЗАПУСТИТЬ СКАНЕР
     </button>
   </div>
@@ -131,34 +131,47 @@ button{width:100%;border:0;border-radius:10px;padding:14px;font-size:17px;font-w
       <div id="frame"></div>
       <div id="ocrBadge">OCR: запуск…</div>
     </div>
-    <div id="seen">Наведи всю наклейку в кадр.</div>
+
+    <div id="seen">
+      Наведи всю наклейку в кадр.
+    </div>
   </div>
 
   <div id="statusCard" class="card search">
     <div id="status" class="status">
-      Нажми «Запустить сканер».
+      Сначала выбери поставку.
     </div>
   </div>
 
   <div class="card">
     <div class="small">
-      Наводи <b>всю этикетку целиком</b>. Ничего отдельно искать камерой не нужно.
-      Система читает весь текст наклейки и сама ищет среди товаров в «Лист1»
-      наиболее подходящий артикул. Штрихкоды не используются.
+      Сканер работает только с поставкой, выбранной сверху.
+      Остальные магазины и остальные строки «Отчет РИМС» не участвуют.
       <br><br>
-      Если количество в строке равно 2, после первой штуки строка будет жёлтой,
-      после второй — зелёной. При количестве 1 строка сразу становится зелёной.
+      Из таблицы ничего не удаляется и значения не меняются:
+      сканер меняет только фон <b>ячейки E</b> найденной позиции.
+      Желтый — принято не всё количество, зеленый — принято полностью.
     </div>
   </div>
 
 </div>
 </div>
 
+
 <script>
+/*
+ * Оставляем тот же URL отдельного scanner Apps Script-проекта.
+ * После замены Code.gs нужно создать новую версию этого развертывания,
+ * сохранив существующий /exec URL.
+ */
 const API =
 'https://script.google.com/macros/s/AKfycby83Hxy4yg9Gtv5UaObBTqHJ4fu_9Vy5Fwuc-E6Hy9tKV09Q9z2MUpkanFRYNsI_J8r/exec';
 
-let accessPin = localStorage.getItem('warehousePin') || '';
+let accessPin =
+  localStorage.getItem('warehousePin') || '';
+
+let batches = [];
+let selectedBatchId = '';
 let catalog = [];
 
 let stream = null;
@@ -171,12 +184,10 @@ let serverBusy = false;
 
 let pass = 0;
 
-/* Защита от повторного принятия одной и той же коробки */
 let blockedKey = '';
 let blockedSince = 0;
 let blockedMisses = 0;
 
-/* Подтверждение нечёткого совпадения */
 let candidateKey = '';
 let candidateHits = 0;
 let candidateAt = 0;
@@ -189,46 +200,77 @@ let candidateAt = 0;
 function api(action, params = {}) {
   return new Promise(function(resolve, reject) {
     const callback =
-      '__label_cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+      '__rims_cb_' +
+      Date.now() +
+      '_' +
+      Math.random().toString(36).slice(2);
 
-    const script = document.createElement('script');
+    const script =
+      document.createElement('script');
 
-    const timer = setTimeout(function() {
-      cleanup();
-      reject(new Error('Apps Script не ответил'));
-    }, 20000);
+    const timer =
+      setTimeout(function() {
+        cleanup();
+        reject(
+          new Error('Apps Script не ответил')
+        );
+      }, 20000);
 
     function cleanup() {
       clearTimeout(timer);
-      try { delete window[callback]; } catch(e) {}
-      if (script.parentNode) script.parentNode.removeChild(script);
+
+      try {
+        delete window[callback];
+      } catch(e) {}
+
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
     }
 
-    window[callback] = function(data) {
-      cleanup();
+    window[callback] =
+      function(data) {
+        cleanup();
 
-      if (data && data.ok) {
-        resolve(data);
-      } else {
-        reject(new Error(
-          data && data.error ? data.error : 'Ошибка API'
-        ));
-      }
-    };
+        if (data && data.ok) {
+          resolve(data);
+        }
+        else {
+          reject(
+            new Error(
+              data && data.error
+                ? data.error
+                : 'Ошибка API'
+            )
+          );
+        }
+      };
 
-    const query = new URLSearchParams(Object.assign({
-      action: action,
-      pin: accessPin,
-      callback: callback,
-      _: Date.now()
-    }, params));
+    const query =
+      new URLSearchParams(
+        Object.assign({
+          action: action,
+          pin: accessPin,
+          callback: callback,
+          _: Date.now()
+        }, params)
+      );
 
-    script.src = API + '?' + query.toString();
+    script.src =
+      API +
+      '?' +
+      query.toString();
 
-    script.onerror = function() {
-      cleanup();
-      reject(new Error('Не удалось подключиться к Apps Script'));
-    };
+    script.onerror =
+      function() {
+        cleanup();
+
+        reject(
+          new Error(
+            'Не удалось подключиться к Apps Script'
+          )
+        );
+      };
 
     document.body.appendChild(script);
   });
@@ -236,27 +278,40 @@ function api(action, params = {}) {
 
 
 /* =====================================================
-   LOGIN
+   LOGIN / BATCHES
 ===================================================== */
 
 async function login() {
-  const value = document.getElementById('pin').value.trim();
+  const value =
+    document
+      .getElementById('pin')
+      .value
+      .trim();
+
   if (!value) return;
 
   accessPin = value;
 
   try {
-    const response = await api('init');
+    const response =
+      await api('init');
 
-    localStorage.setItem('warehousePin', accessPin);
+    localStorage.setItem(
+      'warehousePin',
+      accessPin
+    );
 
     initApp(response.data);
   }
 
   catch(err) {
-    if (String(err.message).includes('BAD_PIN')) {
+    if (
+      String(err.message)
+        .includes('BAD_PIN')
+    ) {
       alert('Неверный PIN');
-    } else {
+    }
+    else {
       alert(err.message);
     }
   }
@@ -264,60 +319,261 @@ async function login() {
 
 
 function initApp(data) {
-  catalog = Array.isArray(data.catalog) ? data.catalog : [];
+  batches =
+    Array.isArray(data.batches)
+      ? data.batches
+      : [];
 
-  document.getElementById('shipment').textContent =
-    '📦 ' + (data.shipmentName || 'Приёмка');
+  document
+    .getElementById('sheetName')
+    .textContent =
+    'Лист: ' +
+    (data.sheetName || '');
 
-  updateSummary(data.summary);
+  const select =
+    document.getElementById('batchSelect');
 
-  document.getElementById('login').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
+  select.innerHTML =
+    '<option value="">— магазин / дата —</option>';
+
+  batches.forEach(function(batch) {
+    const option =
+      document.createElement('option');
+
+    option.value =
+      batch.id;
+
+    option.textContent =
+      batch.label +
+      ' — ' +
+      batch.totalUnits +
+      ' шт.';
+
+    select.appendChild(option);
+  });
+
+  document
+    .getElementById('login')
+    .classList
+    .add('hidden');
+
+  document
+    .getElementById('app')
+    .classList
+    .remove('hidden');
+
+  setStatus(
+    'Выбери конкретную поставку. ' +
+    'Это защита от случайной покраски другого магазина или другой даты.',
+    'search'
+  );
+}
+
+
+async function selectBatch() {
+  const id =
+    document
+      .getElementById('batchSelect')
+      .value;
+
+  selectedBatchId = id;
+  catalog = [];
+
+  blockedKey = '';
+  blockedMisses = 0;
+  candidateKey = '';
+  candidateHits = 0;
+
+  document
+    .getElementById('startBtn')
+    .disabled = true;
+
+  document
+    .getElementById('statsCard')
+    .classList
+    .add('hidden');
+
+  document
+    .getElementById('batchInfo')
+    .classList
+    .add('hidden');
+
+  if (!id) {
+    setStatus(
+      'Сначала выбери поставку.',
+      'search'
+    );
+
+    return;
+  }
+
+  try {
+    setStatus(
+      'Загружаю товары выбранной поставки…',
+      'search'
+    );
+
+    const response =
+      await api(
+        'catalog',
+        {
+          batchId: id
+        }
+      );
+
+    catalog =
+      Array.isArray(response.data.catalog)
+        ? response.data.catalog
+        : [];
+
+    const batch =
+      response.data.batch;
+
+    document
+      .getElementById('shipment')
+      .textContent =
+      '📦 ' + batch.label;
+
+    document
+      .getElementById('batchInfo')
+      .innerHTML =
+      '<b>' +
+      escapeHtml(batch.label) +
+      '</b><br>' +
+      'Строк: ' +
+      batch.productRows +
+      ' • единиц: ' +
+      batch.totalUnits;
+
+    document
+      .getElementById('batchInfo')
+      .classList
+      .remove('hidden');
+
+    document
+      .getElementById('statsCard')
+      .classList
+      .remove('hidden');
+
+    updateSummary(
+      response.data.summary
+    );
+
+    document
+      .getElementById('startBtn')
+      .disabled = false;
+
+    setStatus(
+      'Готово. Теперь запускай камеру и показывай этикетки этой поставки.',
+      'search'
+    );
+  }
+
+  catch(err) {
+    setStatus(
+      '❌ ' +
+      escapeHtml(
+        err.message ||
+        String(err)
+      ),
+      'bad'
+    );
+  }
 }
 
 
 /* =====================================================
-   CAMERA — ШТРИХКОДОВ НЕТ
+   CAMERA
 ===================================================== */
 
 async function startScanner() {
-  try {
-    setStatus('Запускаю камеру…', 'search');
-
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: {
-        facingMode: { ideal: 'environment' },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
-      }
-    });
-
-    const video = document.getElementById('video');
-    video.srcObject = stream;
-    await video.play();
-
-    track = stream.getVideoTracks()[0];
-
-    await improveCamera();
-
-    document.getElementById('cameraCard').classList.remove('hidden');
-    document.getElementById('startBtn').classList.add('hidden');
-
+  if (!selectedBatchId) {
     setStatus(
-      'Камера работает.<br><br>' +
-      'Помести <b>всю товарную этикетку</b> внутрь синей рамки. ' +
-      'Артикул система найдёт сама.',
+      'Сначала выбери поставку.',
+      'bad'
+    );
+
+    return;
+  }
+
+  if (!catalog.length) {
+    setStatus(
+      'В выбранной поставке нет товаров.',
+      'bad'
+    );
+
+    return;
+  }
+
+  try {
+    setStatus(
+      'Запускаю камеру…',
       'search'
     );
 
-    await initOcr();
+    if (!stream) {
+      stream =
+        await navigator
+          .mediaDevices
+          .getUserMedia({
+            audio: false,
+            video: {
+              facingMode: {
+                ideal: 'environment'
+              },
+              width: {
+                ideal: 1920
+              },
+              height: {
+                ideal: 1080
+              }
+            }
+          });
+
+      const video =
+        document
+          .getElementById('video');
+
+      video.srcObject =
+        stream;
+
+      await video.play();
+
+      track =
+        stream
+          .getVideoTracks()[0];
+
+      await improveCamera();
+    }
+
+    document
+      .getElementById('cameraCard')
+      .classList
+      .remove('hidden');
+
+    document
+      .getElementById('startBtn')
+      .classList
+      .add('hidden');
+
+    setStatus(
+      'Помести <b>всю товарную этикетку</b> в синюю рамку. ' +
+      'Артикул система ищет сама.',
+      'search'
+    );
+
+    if (!worker) {
+      await initOcr();
+    }
   }
 
   catch(err) {
     setStatus(
       '❌ Не удалось запустить камеру:<br><br>' +
-      escapeHtml(err.message || String(err)),
+      escapeHtml(
+        err.message ||
+        String(err)
+      ),
       'bad'
     );
   }
@@ -328,52 +584,86 @@ async function improveCamera() {
   if (!track) return;
 
   try {
-    const cap = track.getCapabilities ? track.getCapabilities() : {};
+    const cap =
+      track.getCapabilities
+        ? track.getCapabilities()
+        : {};
+
     const advanced = [];
 
-    if (cap.focusMode && cap.focusMode.includes('continuous')) {
-      advanced.push({ focusMode: 'continuous' });
+    if (
+      cap.focusMode &&
+      cap.focusMode.includes('continuous')
+    ) {
+      advanced.push({
+        focusMode: 'continuous'
+      });
     }
 
-    if (cap.exposureMode && cap.exposureMode.includes('continuous')) {
-      advanced.push({ exposureMode: 'continuous' });
+    if (
+      cap.exposureMode &&
+      cap.exposureMode.includes('continuous')
+    ) {
+      advanced.push({
+        exposureMode: 'continuous'
+      });
     }
 
     if (advanced.length) {
-      await track.applyConstraints({ advanced: advanced });
+      await track.applyConstraints({
+        advanced: advanced
+      });
     }
   }
 
   catch(e) {
-    console.log('camera constraints', e);
+    console.log(
+      'camera constraints',
+      e
+    );
   }
 }
 
 
 /* =====================================================
-   OCR — ВСЯ ЭТИКЕТКА
+   OCR FULL LABEL
 ===================================================== */
 
 async function initOcr() {
   try {
-    setOcrBadge('OCR: загружаю…');
+    setOcrBadge(
+      'OCR: загружаю…'
+    );
 
-    worker = await Tesseract.createWorker(['eng', 'rus']);
+    worker =
+      await Tesseract
+        .createWorker([
+          'eng',
+          'rus'
+        ]);
 
     await setOcrMode(11);
 
     ocrReady = true;
-    setOcrBadge('OCR: готов');
+
+    setOcrBadge(
+      'OCR: готов'
+    );
 
     ocrLoop();
   }
 
   catch(err) {
-    setOcrBadge('OCR: ошибка');
+    setOcrBadge(
+      'OCR: ошибка'
+    );
 
     setStatus(
-      '❌ Не удалось загрузить распознавание текста:<br>' +
-      escapeHtml(err.message || String(err)),
+      '❌ Не удалось загрузить OCR:<br>' +
+      escapeHtml(
+        err.message ||
+        String(err)
+      ),
       'bad'
     );
   }
@@ -397,8 +687,16 @@ async function setOcrMode(psm) {
 async function ocrLoop() {
   if (!ocrReady) return;
 
-  if (ocrBusy || serverBusy) {
-    setTimeout(ocrLoop, 180);
+  if (
+    ocrBusy ||
+    serverBusy ||
+    !selectedBatchId
+  ) {
+    setTimeout(
+      ocrLoop,
+      180
+    );
+
     return;
   }
 
@@ -406,89 +704,139 @@ async function ocrLoop() {
   pass++;
 
   try {
-    /*
-     * Режимы по кругу:
-     * 1 — вся этикетка, мягкий серый
-     * 2 — вся этикетка, ч/б
-     * 3 — центральная часть, мягкий серый
-     * 4 — вся этикетка, поворот 90°
-     * 5 — вся этикетка, поворот -90°
-     */
-    const mode = (pass - 1) % 5;
+    const mode =
+      (pass - 1) % 5;
 
     let canvas;
     let label;
 
     if (mode === 0) {
       await setOcrMode(11);
-      canvas = captureLabel(false, 0, false);
-      label = 'вся этикетка';
+      canvas =
+        captureLabel(
+          false,
+          0,
+          false
+        );
+      label =
+        'вся этикетка';
     }
 
     else if (mode === 1) {
       await setOcrMode(11);
-      canvas = captureLabel(false, 0, true);
-      label = 'этикетка / контраст';
+      canvas =
+        captureLabel(
+          false,
+          0,
+          true
+        );
+      label =
+        'этикетка / контраст';
     }
 
     else if (mode === 2) {
       await setOcrMode(6);
-      canvas = captureLabel(true, 0, false);
-      label = 'центр этикетки';
+      canvas =
+        captureLabel(
+          true,
+          0,
+          false
+        );
+      label =
+        'центр';
     }
 
     else if (mode === 3) {
       await setOcrMode(11);
-      canvas = captureLabel(false, 90, false);
-      label = 'этикетка / 90°';
+      canvas =
+        captureLabel(
+          false,
+          90,
+          false
+        );
+      label =
+        '90°';
     }
 
     else {
       await setOcrMode(11);
-      canvas = captureLabel(false, -90, false);
-      label = 'этикетка / -90°';
+      canvas =
+        captureLabel(
+          false,
+          -90,
+          false
+        );
+      label =
+        '-90°';
     }
 
     if (canvas) {
-      setOcrBadge('OCR: ' + label);
+      setOcrBadge(
+        'OCR: ' +
+        label
+      );
 
-      const result = await worker.recognize(canvas);
+      const result =
+        await worker
+          .recognize(
+            canvas
+          );
 
       const text =
-        result && result.data
-          ? (result.data.text || '')
+        result &&
+        result.data
+          ? (
+              result.data.text ||
+              ''
+            )
           : '';
 
       showSeen(text);
 
-      processLabelText(text);
+      processLabelText(
+        text
+      );
     }
   }
 
   catch(err) {
-    console.log('OCR', err);
+    console.log(
+      'OCR',
+      err
+    );
   }
 
   finally {
     ocrBusy = false;
 
     if (ocrReady) {
-      setOcrBadge('OCR: готов');
+      setOcrBadge(
+        'OCR: готов'
+      );
     }
 
-    setTimeout(ocrLoop, 130);
+    setTimeout(
+      ocrLoop,
+      130
+    );
   }
 }
 
 
 /* =====================================================
-   CAPTURE / IMAGE PREPROCESSING
+   CAPTURE / PREPROCESSING
 ===================================================== */
 
 function getVideo() {
-  const video = document.getElementById('video');
+  const video =
+    document
+      .getElementById('video');
 
-  if (!video || !video.videoWidth || !video.videoHeight) {
+  if (
+    !video ||
+    !video.videoWidth ||
+    !video.videoHeight
+  ) {
     return null;
   }
 
@@ -496,74 +844,201 @@ function getVideo() {
 }
 
 
-function captureLabel(centerOnly, rotation, thresholdMode) {
-  const video = getVideo();
-  if (!video) return null;
+function captureLabel(
+  centerOnly,
+  rotation,
+  thresholdMode
+) {
+  const video =
+    getVideo();
 
-  let sx, sy, sw, sh;
+  if (!video) {
+    return null;
+  }
+
+  let sx;
+  let sy;
+  let sw;
+  let sh;
 
   if (centerOnly) {
-    sw = Math.round(video.videoWidth * .88);
-    sh = Math.round(video.videoHeight * .68);
-    sx = Math.round((video.videoWidth - sw) / 2);
-    sy = Math.round((video.videoHeight - sh) / 2);
+    sw =
+      Math.round(
+        video.videoWidth *
+        .88
+      );
+
+    sh =
+      Math.round(
+        video.videoHeight *
+        .68
+      );
   }
 
   else {
-    sw = Math.round(video.videoWidth * .96);
-    sh = Math.round(video.videoHeight * .92);
-    sx = Math.round((video.videoWidth - sw) / 2);
-    sy = Math.round((video.videoHeight - sh) / 2);
+    sw =
+      Math.round(
+        video.videoWidth *
+        .96
+      );
+
+    sh =
+      Math.round(
+        video.videoHeight *
+        .92
+      );
   }
 
-  const maxW = centerOnly ? 1500 : 1650;
-  const scale = Math.min(1.8, maxW / Math.max(sw, 1));
+  sx =
+    Math.round(
+      (
+        video.videoWidth -
+        sw
+      ) / 2
+    );
 
-  const raw = document.createElement('canvas');
-  raw.width = Math.max(1, Math.round(sw * scale));
-  raw.height = Math.max(1, Math.round(sh * scale));
+  sy =
+    Math.round(
+      (
+        video.videoHeight -
+        sh
+      ) / 2
+    );
 
-  const ctx = raw.getContext('2d', { willReadFrequently: true });
+  const maxW =
+    centerOnly
+      ? 1500
+      : 1650;
+
+  const scale =
+    Math.min(
+      1.8,
+      maxW /
+      Math.max(sw, 1)
+    );
+
+  const raw =
+    document
+      .createElement(
+        'canvas'
+      );
+
+  raw.width =
+    Math.max(
+      1,
+      Math.round(
+        sw *
+        scale
+      )
+    );
+
+  raw.height =
+    Math.max(
+      1,
+      Math.round(
+        sh *
+        scale
+      )
+    );
+
+  const ctx =
+    raw.getContext(
+      '2d',
+      {
+        willReadFrequently: true
+      }
+    );
 
   ctx.drawImage(
     video,
-    sx, sy, sw, sh,
-    0, 0, raw.width, raw.height
+    sx,
+    sy,
+    sw,
+    sh,
+    0,
+    0,
+    raw.width,
+    raw.height
   );
 
-  preprocess(ctx, raw.width, raw.height, thresholdMode);
+  preprocess(
+    ctx,
+    raw.width,
+    raw.height,
+    thresholdMode
+  );
 
   if (!rotation) {
     return raw;
   }
 
-  const rotated = document.createElement('canvas');
+  const rotated =
+    document
+      .createElement(
+        'canvas'
+      );
 
-  rotated.width = raw.height;
-  rotated.height = raw.width;
+  rotated.width =
+    raw.height;
 
-  const rctx = rotated.getContext('2d');
+  rotated.height =
+    raw.width;
 
-  rctx.translate(rotated.width / 2, rotated.height / 2);
-  rctx.rotate(rotation * Math.PI / 180);
-  rctx.drawImage(raw, -raw.width / 2, -raw.height / 2);
+  const rctx =
+    rotated
+      .getContext('2d');
+
+  rctx.translate(
+    rotated.width / 2,
+    rotated.height / 2
+  );
+
+  rctx.rotate(
+    rotation *
+    Math.PI /
+    180
+  );
+
+  rctx.drawImage(
+    raw,
+    -raw.width / 2,
+    -raw.height / 2
+  );
 
   return rotated;
 }
 
 
-function preprocess(ctx, width, height, thresholdMode) {
+function preprocess(
+  ctx,
+  width,
+  height,
+  thresholdMode
+) {
   try {
-    const image = ctx.getImageData(0, 0, width, height);
-    const d = image.data;
+    const image =
+      ctx.getImageData(
+        0,
+        0,
+        width,
+        height
+      );
 
-    let mean = 128;
+    const d =
+      image.data;
+
+    let mean =
+      128;
 
     if (thresholdMode) {
       let sum = 0;
       let count = 0;
 
-      for (let i = 0; i < d.length; i += 32) {
+      for (
+        let i = 0;
+        i < d.length;
+        i += 32
+      ) {
         const g =
           d[i] * .299 +
           d[i + 1] * .587 +
@@ -573,10 +1048,17 @@ function preprocess(ctx, width, height, thresholdMode) {
         count++;
       }
 
-      if (count) mean = sum / count;
+      if (count) {
+        mean =
+          sum / count;
+      }
     }
 
-    for (let i = 0; i < d.length; i += 4) {
+    for (
+      let i = 0;
+      i < d.length;
+      i += 4
+    ) {
       const gray =
         d[i] * .299 +
         d[i + 1] * .587 +
@@ -585,13 +1067,39 @@ function preprocess(ctx, width, height, thresholdMode) {
       let value;
 
       if (thresholdMode) {
-        const t = Math.max(85, Math.min(195, mean * .92));
-        value = gray >= t ? 255 : 0;
+        const t =
+          Math.max(
+            85,
+            Math.min(
+              195,
+              mean *
+              .92
+            )
+          );
+
+        value =
+          gray >= t
+            ? 255
+            : 0;
       }
 
       else {
-        value = (gray - 128) * 1.22 + 128;
-        value = Math.max(0, Math.min(255, value));
+        value =
+          (
+            gray -
+            128
+          ) *
+          1.22 +
+          128;
+
+        value =
+          Math.max(
+            0,
+            Math.min(
+              255,
+              value
+            )
+          );
       }
 
       d[i] = value;
@@ -599,7 +1107,11 @@ function preprocess(ctx, width, height, thresholdMode) {
       d[i + 2] = value;
     }
 
-    ctx.putImageData(image, 0, 0);
+    ctx.putImageData(
+      image,
+      0,
+      0
+    );
   }
 
   catch(e) {}
@@ -607,27 +1119,36 @@ function preprocess(ctx, width, height, thresholdMode) {
 
 
 /* =====================================================
-   TEXT NORMALIZATION / MATCHING
+   MATCHING
 ===================================================== */
 
 function normalize(value) {
   return String(value || '')
     .toUpperCase()
     .replace(/Ё/g, 'Е')
-    .replace(/[^A-ZА-Я0-9]/g, '');
+    .replace(
+      /[^A-ZА-Я0-9]/g,
+      ''
+    );
 }
 
 
 function tokens(value) {
-  return String(value || '')
-    .toUpperCase()
-    .replace(/Ё/g, 'Е')
-    .match(/[A-ZА-Я0-9]+/g) || [];
+  return (
+    String(value || '')
+      .toUpperCase()
+      .replace(/Ё/g, 'Е')
+      .match(/[A-ZА-Я0-9]+/g)
+    ||
+    []
+  );
 }
 
 
 function hasDigit(value) {
-  return /\d/.test(String(value || ''));
+  return /\d/.test(
+    String(value || '')
+  );
 }
 
 
@@ -642,30 +1163,28 @@ function canonicalMixed(value) {
 }
 
 
-/*
- * Из всего текста этикетки делаем:
- * - отдельные слова/числа
- * - сочетания соседних элементов
- * - строки без пробелов
- *
- * Поэтому:
- * "Part No. W338 738 SA"
- * тоже сможет совпасть с W338738SA.
- */
 function makeCandidates(text) {
   const rawLines =
     String(text || '')
       .toUpperCase()
       .replace(/Ё/g, 'Е')
       .split(/\n+/)
-      .map(x => x.trim())
+      .map(function(x) {
+        return x.trim();
+      })
       .filter(Boolean);
 
-  const set = new Set();
+  const set =
+    new Set();
 
   function add(v) {
-    const n = normalize(v);
-    if (n.length >= 2 && n.length <= 50) {
+    const n =
+      normalize(v);
+
+    if (
+      n.length >= 2 &&
+      n.length <= 60
+    ) {
       set.add(n);
     }
   }
@@ -673,122 +1192,178 @@ function makeCandidates(text) {
   rawLines.forEach(function(line) {
     add(line);
 
-    const parts = tokens(line);
+    const parts =
+      tokens(line);
 
     parts.forEach(add);
 
-    for (let i = 0; i < parts.length; i++) {
-      for (let count = 2; count <= 6; count++) {
-        if (i + count > parts.length) break;
+    for (
+      let i = 0;
+      i < parts.length;
+      i++
+    ) {
+      for (
+        let count = 2;
+        count <= 7;
+        count++
+      ) {
+        if (
+          i + count >
+          parts.length
+        ) {
+          break;
+        }
 
         add(
           parts
-            .slice(i, i + count)
+            .slice(
+              i,
+              i + count
+            )
             .join('')
         );
       }
     }
   });
 
-  /*
-   * Сочетания через границы строк —
-   * на этикетках артикул иногда переносится.
-   */
-  const all = tokens(text);
+  const all =
+    tokens(text);
 
-  for (let i = 0; i < all.length; i++) {
-    for (let count = 2; count <= 4; count++) {
-      if (i + count > all.length) break;
-      add(all.slice(i, i + count).join(''));
+  for (
+    let i = 0;
+    i < all.length;
+    i++
+  ) {
+    for (
+      let count = 2;
+      count <= 5;
+      count++
+    ) {
+      if (
+        i + count >
+        all.length
+      ) {
+        break;
+      }
+
+      add(
+        all
+          .slice(
+            i,
+            i + count
+          )
+          .join('')
+      );
     }
   }
 
-  return [...set];
+  return [
+    ...set
+  ];
 }
 
 
-function brandSupport(item, ocrNorm, ocrParts) {
-  const nameParts = tokens(item.name);
+function brandBonus(item, text) {
+  const nameParts =
+    tokens(item.name);
 
-  if (!nameParts.length) return 0;
-
-  /*
-   * Первый токен обычно бренд.
-   * Для коротких брендов типа CTR/GMB/555
-   * учитываем только точное совпадение.
-   */
-  const brand = normalize(nameParts[0]);
-
-  if (brand.length < 3) return 0;
-
-  if (ocrParts.includes(brand)) {
-    return .045;
+  if (!nameParts.length) {
+    return 0;
   }
 
+  const brand =
+    normalize(
+      nameParts[0]
+    );
+
+  const ocrParts =
+    tokens(text)
+      .map(normalize);
+
   if (
-    brand.length >= 5 &&
-    ocrNorm.includes(brand)
+    brand.length >= 3 &&
+    ocrParts.includes(brand)
   ) {
-    return .035;
+    return .045;
   }
 
   return 0;
 }
 
 
-function scoreAlias(aliasRaw, candidateRaw) {
-  const alias = normalize(aliasRaw);
-  const candidate = normalize(candidateRaw);
+function scoreAlias(
+  aliasRaw,
+  candidateRaw
+) {
+  const alias =
+    normalize(
+      aliasRaw
+    );
 
-  if (!alias || !candidate) return 0;
+  const candidate =
+    normalize(
+      candidateRaw
+    );
 
-  /*
-   * Слишком короткие значения опасны.
-   * Но точное 2–3 символа разрешим на слабом балле,
-   * который потом должен поддержаться брендом и вторым кадром.
-   */
-  if (candidate === alias) {
-    if (alias.length >= 8) return 1.00;
-    if (alias.length >= 6) return .99;
-    if (alias.length >= 4) return .965;
-    return .89;
+  if (
+    !alias ||
+    !candidate
+  ) {
+    return 0;
   }
 
-  /*
-   * Алиас оказался внутри длинной OCR-строки.
-   */
-  if (alias.length >= 4) {
-    if (candidate.includes(alias)) {
-      const excess = candidate.length - alias.length;
+  if (
+    candidate ===
+    alias
+  ) {
+    if (alias.length >= 8) return 1;
+    if (alias.length >= 6) return .99;
+    if (alias.length >= 4) return .965;
+    return .88;
+  }
 
-      if (excess <= 18) {
-        return alias.length >= 7 ? .97 : .93;
-      }
+  if (
+    alias.length >= 4 &&
+    candidate.includes(alias)
+  ) {
+    const excess =
+      candidate.length -
+      alias.length;
+
+    if (excess <= 22) {
+      return (
+        alias.length >= 7
+          ? .97
+          : .92
+      );
     }
   }
 
-  /*
-   * Типичные ошибки букв/цифр для смешанных артикулов.
-   */
   const mixed =
     hasDigit(alias) ||
     hasDigit(candidate);
 
-  const a = mixed
-    ? canonicalMixed(alias)
-    : alias;
+  const a =
+    mixed
+      ? canonicalMixed(alias)
+      : alias;
 
-  const b = mixed
-    ? canonicalMixed(candidate)
-    : candidate;
+  const b =
+    mixed
+      ? canonicalMixed(candidate)
+      : candidate;
 
   if (a === b) {
-    return alias.length >= 6 ? .985 : .94;
+    return (
+      alias.length >= 6
+        ? .985
+        : .94
+    );
   }
 
   /*
-   * Чисто цифровые короткие значения не угадываем:
-   * на этикетке слишком много других чисел.
+   * На полной этикетке много случайных коротких чисел.
+   * Чисто цифровой артикул < 6 знаков по fuzzy не угадываем.
    */
   if (
     /^\d+$/.test(alias) &&
@@ -801,27 +1376,49 @@ function scoreAlias(aliasRaw, candidateRaw) {
   if (
     alias.length >= 5 &&
     candidate.length >= 5 &&
-    Math.abs(a.length - b.length) <= 2
+    Math.abs(
+      a.length -
+      b.length
+    ) <= 3
   ) {
-    const dist = levenshtein(a, b);
+    const dist =
+      levenshtein(
+        a,
+        b
+      );
 
     let maxEdits = 1;
 
-    if (Math.max(a.length, b.length) >= 10) {
+    if (
+      Math.max(
+        a.length,
+        b.length
+      ) >= 10
+    ) {
       maxEdits = 2;
     }
 
-    if (Math.max(a.length, b.length) >= 16) {
+    if (
+      Math.max(
+        a.length,
+        b.length
+      ) >= 16
+    ) {
       maxEdits = 3;
     }
 
-    if (dist <= maxEdits) {
-      const sim =
+    if (
+      dist <=
+      maxEdits
+    ) {
+      return (
         1 -
         dist /
-        Math.max(a.length, b.length);
-
-      return sim * .97;
+        Math.max(
+          a.length,
+          b.length
+        )
+      ) * .97;
     }
   }
 
@@ -829,15 +1426,113 @@ function scoreAlias(aliasRaw, candidateRaw) {
 }
 
 
-function findBestProduct(text) {
-  const candidates = makeCandidates(text);
+/*
+ * Дополнительное сравнение всей этикетки с наименованием.
+ * Нужно для FORUM-AUTO и похожих строк, где в C
+ * иногда записано описание вместо явного артикула.
+ */
+function descriptiveScore(
+  item,
+  text
+) {
+  const stop =
+    new Set([
+      'AUTO',
+      'PART',
+      'PARTS',
+      'MADE',
+      'IN',
+      'THE',
+      'FOR',
+      'NEW',
+      'ART',
+      'АРТ',
+      'СТАРЫЙ',
+      'СТАРОГО',
+      'ШТ',
+      'MM',
+      'ММ'
+    ]);
 
-  if (!candidates.length || !catalog.length) {
-    return null;
+  const productTokens =
+    tokens(item.name)
+      .map(normalize)
+      .filter(function(x) {
+        return (
+          x.length >= 3 &&
+          !stop.has(x)
+        );
+      });
+
+  if (!productTokens.length) {
+    return 0;
   }
 
-  const ocrNorm = normalize(text);
-  const ocrParts = tokens(text).map(normalize);
+  const ocrSet =
+    new Set(
+      tokens(text)
+        .map(normalize)
+    );
+
+  let totalWeight = 0;
+  let hitWeight = 0;
+
+  productTokens.forEach(function(t) {
+    let weight = 1;
+
+    if (/\d/.test(t)) {
+      weight = 3;
+    }
+    else if (t.length >= 7) {
+      weight = 2;
+    }
+    else if (t.length >= 5) {
+      weight = 1.5;
+    }
+
+    totalWeight += weight;
+
+    if (ocrSet.has(t)) {
+      hitWeight += weight;
+    }
+  });
+
+  if (!totalWeight) {
+    return 0;
+  }
+
+  const ratio =
+    hitWeight /
+    totalWeight;
+
+  /*
+   * Только сильное текстовое совпадение.
+   */
+  if (
+    ratio >= .70 &&
+    hitWeight >= 4
+  ) {
+    return .86 +
+      Math.min(
+        .10,
+        (ratio - .70) * .25
+      );
+  }
+
+  return 0;
+}
+
+
+function findBestProduct(text) {
+  const candidates =
+    makeCandidates(text);
+
+  if (
+    !candidates.length ||
+    !catalog.length
+  ) {
+    return null;
+  }
 
   const results = [];
 
@@ -845,85 +1540,136 @@ function findBestProduct(text) {
     let bestAliasScore = 0;
     let bestAliasLength = 0;
 
-    (item.aliases || []).forEach(function(alias) {
-      const aliasNorm = normalize(alias);
+    (item.aliases || [])
+      .forEach(function(alias) {
+        const aliasNorm =
+          normalize(alias);
 
-      /*
-       * Алиас из 2 символов слишком опасен,
-       * если бренд на этикетке не читается.
-       */
-      for (const candidate of candidates) {
-        const s = scoreAlias(aliasNorm, candidate);
-
-        if (
-          s > bestAliasScore ||
-          (
-            s === bestAliasScore &&
-            aliasNorm.length > bestAliasLength
-          )
+        for (
+          const candidate
+          of candidates
         ) {
-          bestAliasScore = s;
-          bestAliasLength = aliasNorm.length;
+          const s =
+            scoreAlias(
+              aliasNorm,
+              candidate
+            );
+
+          if (
+            s > bestAliasScore ||
+            (
+              s === bestAliasScore &&
+              aliasNorm.length >
+              bestAliasLength
+            )
+          ) {
+            bestAliasScore = s;
+            bestAliasLength =
+              aliasNorm.length;
+          }
         }
-      }
-    });
+      });
 
-    if (bestAliasScore <= 0) return;
-
-    const brandBonus =
-      brandSupport(item, ocrNorm, ocrParts);
-
-    /*
-     * Короткий артикул без бренда требует второго кадра.
-     */
-    let score =
-      Math.min(
-        1,
-        bestAliasScore + brandBonus
+    const description =
+      descriptiveScore(
+        item,
+        text
       );
 
-    results.push({
-      productKey: item.productKey,
-      name: item.name,
-      expected: Number(item.expected || 0),
-      accepted: Number(item.accepted || 0),
-      score: score,
-      aliasLength: bestAliasLength,
-      strong:
-        score >= .985 &&
-        (
-          bestAliasLength >= 6 ||
-          brandBonus > 0
-        )
-    });
-  });
+    let score =
+      Math.max(
+        bestAliasScore +
+        brandBonus(
+          item,
+          text
+        ),
+        description
+      );
 
-  if (!results.length) return null;
+    score =
+      Math.min(
+        1,
+        score
+      );
 
-  results.sort(function(a, b) {
-    if (b.score !== a.score) {
-      return b.score - a.score;
+    if (score > 0) {
+      results.push({
+        productKey:
+          item.productKey,
+
+        name:
+          item.name,
+
+        expected:
+          Number(
+            item.expected || 0
+          ),
+
+        accepted:
+          Number(
+            item.accepted || 0
+          ),
+
+        score:
+          score,
+
+        aliasLength:
+          bestAliasLength,
+
+        strong:
+          score >= .985 &&
+          (
+            bestAliasLength >= 6 ||
+            brandBonus(
+              item,
+              text
+            ) > 0
+          )
+      });
     }
-
-    return b.aliasLength - a.aliasLength;
   });
 
-  const best = results[0];
-  const second = results[1];
-
-  if (best.score < .88) {
+  if (!results.length) {
     return null;
   }
 
-  /*
-   * Если два товара почти одинаковы,
-   * не рискуем — ждём следующий OCR-проход.
-   */
+  results.sort(function(a, b) {
+    if (
+      b.score !==
+      a.score
+    ) {
+      return (
+        b.score -
+        a.score
+      );
+    }
+
+    return (
+      b.aliasLength -
+      a.aliasLength
+    );
+  });
+
+  const best =
+    results[0];
+
+  const second =
+    results[1];
+
+  if (
+    best.score < .86
+  ) {
+    return null;
+  }
+
   if (
     second &&
-    second.productKey !== best.productKey &&
+    second.productKey !==
+      best.productKey &&
     best.score < .995 &&
-    best.score - second.score < .045
+    best.score -
+      second.score
+    < .05
   ) {
     return null;
   }
@@ -937,22 +1683,20 @@ function findBestProduct(text) {
 ===================================================== */
 
 function processLabelText(text) {
-  const best = findBestProduct(text);
+  const best =
+    findBestProduct(text);
 
-  /*
-   * После успешного принятия держим блокировку,
-   * пока предыдущая этикетка реально не исчезла из кадра.
-   */
   if (blockedKey) {
     if (
       best &&
-      best.productKey === blockedKey
+      best.productKey ===
+        blockedKey
     ) {
       blockedMisses = 0;
 
       setStatus(
         '✅ Эта штука уже учтена.<br><br>' +
-        '<b>Убери её и покажи следующую этикетку.</b>',
+        '<b>Убери её из кадра и покажи следующую.</b>',
         'ok'
       );
 
@@ -961,21 +1705,21 @@ function processLabelText(text) {
 
     if (
       best &&
-      best.productKey !== blockedKey
+      best.productKey !==
+        blockedKey
     ) {
       blockedKey = '';
       blockedMisses = 0;
     }
 
     else {
-      /*
-       * Не разблокируемся на одном плохом OCR-кадре.
-       */
       blockedMisses++;
 
       if (
         blockedMisses < 3 ||
-        Date.now() - blockedSince < 1800
+        Date.now() -
+        blockedSince
+        < 1800
       ) {
         return;
       }
@@ -988,51 +1732,68 @@ function processLabelText(text) {
   if (!best) {
     candidateKey = '';
     candidateHits = 0;
+
     return;
   }
 
-  /*
-   * Очень сильное совпадение — сразу.
-   * Остальное подтверждаем вторым OCR-проходом.
-   */
   if (best.strong) {
     acceptProduct(best);
+
     return;
   }
 
-  const now = Date.now();
+  const now =
+    Date.now();
 
   if (
-    candidateKey === best.productKey &&
-    now - candidateAt < 5500
+    candidateKey ===
+      best.productKey &&
+    now -
+      candidateAt
+    < 5500
   ) {
     candidateHits++;
   }
 
   else {
-    candidateKey = best.productKey;
-    candidateHits = 1;
+    candidateKey =
+      best.productKey;
+
+    candidateHits =
+      1;
   }
 
-  candidateAt = now;
+  candidateAt =
+    now;
 
   setStatus(
     '🔎 Нашёл совпадение:<br>' +
     '<span class="product">' +
-    escapeHtml(best.name) +
+    escapeHtml(
+      best.name
+    ) +
     '</span><br><br>' +
-    'Проверяю ещё одним кадром…',
+    'Подтверждаю ещё одним кадром…',
     'search'
   );
 
-  if (candidateHits >= 2) {
-    acceptProduct(best);
+  if (
+    candidateHits >= 2
+  ) {
+    acceptProduct(
+      best
+    );
   }
 }
 
 
 async function acceptProduct(item) {
-  if (serverBusy) return;
+  if (
+    serverBusy ||
+    !selectedBatchId
+  ) {
+    return;
+  }
 
   serverBusy = true;
 
@@ -1042,9 +1803,11 @@ async function acceptProduct(item) {
   setStatus(
     '✅ Товар определён:<br>' +
     '<span class="product">' +
-    escapeHtml(item.name) +
+    escapeHtml(
+      item.name
+    ) +
     '</span><br><br>' +
-    'Отмечаю 1 штуку в таблице…',
+    'Отмечаю 1 штуку в столбце E…',
     'search'
   );
 
@@ -1053,11 +1816,17 @@ async function acceptProduct(item) {
       await api(
         'accept',
         {
-          productKey: item.productKey
+          batchId:
+            selectedBatchId,
+
+          productKey:
+            item.productKey
         }
       );
 
-    handleResult(response.result);
+    handleResult(
+      response.result
+    );
   }
 
   catch(err) {
@@ -1065,7 +1834,10 @@ async function acceptProduct(item) {
 
     setStatus(
       '❌ ' +
-      escapeHtml(err.message || String(err)),
+      escapeHtml(
+        err.message ||
+        String(err)
+      ),
       'bad'
     );
   }
@@ -1075,10 +1847,14 @@ async function acceptProduct(item) {
 function handleResult(res) {
   serverBusy = false;
 
-  if (!res) return;
+  if (!res) {
+    return;
+  }
 
   if (res.summary) {
-    updateSummary(res.summary);
+    updateSummary(
+      res.summary
+    );
   }
 
   if (
@@ -1087,54 +1863,89 @@ function handleResult(res) {
   ) {
     const item =
       catalog.find(
-        x => x.productKey === res.productKey
+        function(x) {
+          return (
+            x.productKey ===
+            res.productKey
+          );
+        }
       );
 
     if (item) {
-      item.accepted = Number(res.accepted || 0);
+      item.accepted =
+        Number(
+          res.accepted || 0
+        );
     }
 
-    blockedKey = res.productKey;
-    blockedSince = Date.now();
-    blockedMisses = 0;
+    blockedKey =
+      res.productKey;
+
+    blockedSince =
+      Date.now();
+
+    blockedMisses =
+      0;
 
     const complete =
-      res.type === 'complete';
+      res.type ===
+      'complete';
 
     setStatus(
-      (complete ? '✅ ' : '🟡 ') +
+      (
+        complete
+          ? '✅ '
+          : '🟡 '
+      ) +
       '<b>' +
-      escapeHtml(res.name) +
+      escapeHtml(
+        res.name
+      ) +
       '</b><br><br>' +
       'Принято: <b>' +
       res.accepted +
       '</b> из ' +
       res.expected +
-      '<br>Осталось: <b>' +
+      '<br>' +
+      'Осталось: <b>' +
       res.remaining +
       '</b><br><br>' +
       (
-        complete
-          ? 'Строка в «Лист1» должна быть зелёной.'
-          : 'Строка в «Лист1» сейчас жёлтая. После полного количества станет зелёной.'
+        res.rowComplete
+          ? 'Ячейка E этой строки окрашена в зелёный.'
+          : 'Ячейка E этой строки окрашена в жёлтый.'
       ),
-      complete ? 'ok' : 'warn'
+      complete
+        ? 'ok'
+        : 'warn'
     );
 
-    vibrate([70,45,70]);
+    vibrate(
+      [70,45,70]
+    );
 
     return;
   }
 
-  if (res.type === 'extra') {
-    blockedKey = res.productKey;
-    blockedSince = Date.now();
-    blockedMisses = 0;
+  if (
+    res.type ===
+    'extra'
+  ) {
+    blockedKey =
+      res.productKey;
+
+    blockedSince =
+      Date.now();
+
+    blockedMisses =
+      0;
 
     setStatus(
-      '⚠️ По этому товару уже принято всё количество:<br><br>' +
+      '⚠️ По этой позиции уже принято всё количество:<br><br>' +
       '<b>' +
-      escapeHtml(res.name) +
+      escapeHtml(
+        res.name
+      ) +
       '</b><br>' +
       res.accepted +
       ' из ' +
@@ -1146,7 +1957,7 @@ function handleResult(res) {
   }
 
   setStatus(
-    '❌ Товар не удалось отметить в таблице.',
+    '❌ Позиция не найдена в выбранной поставке.',
     'bad'
   );
 }
@@ -1157,22 +1968,47 @@ function handleResult(res) {
 ===================================================== */
 
 function levenshtein(a, b) {
-  const m = a.length;
-  const n = b.length;
+  const m =
+    a.length;
 
-  const prev = new Array(n + 1);
-  const curr = new Array(n + 1);
+  const n =
+    b.length;
 
-  for (let j = 0; j <= n; j++) {
-    prev[j] = j;
+  const prev =
+    new Array(
+      n + 1
+    );
+
+  const curr =
+    new Array(
+      n + 1
+    );
+
+  for (
+    let j = 0;
+    j <= n;
+    j++
+  ) {
+    prev[j] =
+      j;
   }
 
-  for (let i = 1; i <= m; i++) {
-    curr[0] = i;
+  for (
+    let i = 1;
+    i <= m;
+    i++
+  ) {
+    curr[0] =
+      i;
 
-    for (let j = 1; j <= n; j++) {
+    for (
+      let j = 1;
+      j <= n;
+      j++
+    ) {
       const cost =
-        a[i - 1] === b[j - 1]
+        a[i - 1] ===
+        b[j - 1]
           ? 0
           : 1;
 
@@ -1184,8 +2020,13 @@ function levenshtein(a, b) {
         );
     }
 
-    for (let j = 0; j <= n; j++) {
-      prev[j] = curr[j];
+    for (
+      let j = 0;
+      j <= n;
+      j++
+    ) {
+      prev[j] =
+        curr[j];
     }
   }
 
@@ -1198,30 +2039,45 @@ function levenshtein(a, b) {
 ===================================================== */
 
 function updateSummary(data) {
-  if (!data) return;
+  if (!data) {
+    return;
+  }
 
-  document.getElementById('accepted').textContent =
+  document
+    .getElementById('accepted')
+    .textContent =
     data.accepted;
 
-  document.getElementById('expected').textContent =
+  document
+    .getElementById('expected')
+    .textContent =
     data.expected;
 
-  document.getElementById('remaining').textContent =
+  document
+    .getElementById('remaining')
+    .textContent =
     data.remaining;
 }
 
 
 function setStatus(html, type) {
-  document.getElementById('statusCard').className =
-    'card ' + type;
+  document
+    .getElementById('statusCard')
+    .className =
+    'card ' +
+    type;
 
-  document.getElementById('status').innerHTML =
+  document
+    .getElementById('status')
+    .innerHTML =
     html;
 }
 
 
 function setOcrBadge(text) {
-  document.getElementById('ocrBadge').textContent =
+  document
+    .getElementById('ocrBadge')
+    .textContent =
     text;
 }
 
@@ -1233,9 +2089,12 @@ function showSeen(text) {
       .trim()
       .slice(0, 260);
 
-  document.getElementById('seen').textContent =
+  document
+    .getElementById('seen')
+    .textContent =
     cleaned
-      ? 'OCR прочитал: ' + cleaned
+      ? 'OCR прочитал: ' +
+        cleaned
       : 'OCR пока не прочитал текст этикетки.';
 }
 
@@ -1252,8 +2111,11 @@ function escapeHtml(value) {
 
 function vibrate(pattern) {
   try {
-    navigator.vibrate(pattern);
-  } catch(e) {}
+    navigator.vibrate(
+      pattern
+    );
+  }
+  catch(e) {}
 }
 
 
@@ -1261,21 +2123,32 @@ function vibrate(pattern) {
    AUTO LOGIN
 ===================================================== */
 
-window.onload = async function() {
-  if (!accessPin) return;
+window.onload =
+async function() {
+  if (!accessPin) {
+    return;
+  }
 
-  document.getElementById('pin').value =
+  document
+    .getElementById('pin')
+    .value =
     accessPin;
 
   try {
     const response =
       await api('init');
 
-    initApp(response.data);
+    initApp(
+      response.data
+    );
   }
 
   catch(err) {
-    localStorage.removeItem('warehousePin');
+    localStorage
+      .removeItem(
+        'warehousePin'
+      );
+
     accessPin = '';
   }
 };
