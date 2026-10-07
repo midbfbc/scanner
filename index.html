@@ -67,6 +67,44 @@ button:disabled{opacity:.45}
   padding:10px;border-radius:10px;background:#0f172a;
   margin-top:10px;font-size:13px;line-height:1.45
 }
+.date-list{
+  margin-top:10px;
+  display:grid;
+  gap:7px
+}
+.date-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 11px;
+  background:#0f172a;
+  border-radius:10px;
+  cursor:pointer
+}
+.date-row input{
+  width:auto;
+  margin:0;
+  transform:scale(1.25)
+}
+.date-row-main{flex:1}
+.date-row-title{font-weight:700}
+.date-row-meta{
+  font-size:12px;
+  color:#cbd5e1;
+  margin-top:2px
+}
+.date-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:8px
+}
+.date-actions button{
+  margin-top:0;
+  font-size:14px;
+  padding:11px
+}
+.gray{background:#475569;color:#fff}
 </style>
 </head>
 
@@ -83,12 +121,27 @@ button:disabled{opacity:.45}
 <div id="app" class="hidden">
 
   <div class="card">
-    <div class="title">Выбери поставку</div>
+    <div class="title">Выбери магазин и даты</div>
     <div id="sheetName" class="small"></div>
 
-    <select id="batchSelect" onchange="selectBatch()">
-      <option value="">— магазин / дата —</option>
+    <select id="storeSelect" onchange="renderDateChoices()">
+      <option value="">— магазин —</option>
     </select>
+
+    <div id="dateChoices" class="date-list"></div>
+
+    <div id="dateActions" class="date-actions hidden">
+      <button class="gray" onclick="toggleAllDates(true)">ВЫБРАТЬ ВСЕ</button>
+      <button class="gray" onclick="toggleAllDates(false)">СНЯТЬ ВСЕ</button>
+    </div>
+
+    <button
+      id="loadDatesBtn"
+      class="blue hidden"
+      onclick="loadSelectedBatches()"
+    >
+      ЗАГРУЗИТЬ ВЫБРАННЫЕ ДАТЫ
+    </button>
 
     <div id="batchInfo" class="batch-note hidden"></div>
   </div>
@@ -145,7 +198,8 @@ button:disabled{opacity:.45}
 
   <div class="card">
     <div class="small">
-      Сканер работает только с поставкой, выбранной сверху.
+      Сканер работает только с <b>магазином и датами, выбранными сверху</b>.
+      Можно отметить сразу несколько дат одного магазина.
       Остальные магазины и остальные строки «Отчет РИМС» не участвуют.
       <br><br>
       Из таблицы ничего не удаляется и значения не меняются:
@@ -171,7 +225,10 @@ let accessPin =
   localStorage.getItem('warehousePin') || '';
 
 let batches = [];
-let selectedBatchId = '';
+let selectedStore = '';
+let selectedBatchIds = [];
+let selectedBatchMeta = [];
+let batchSummaries = {};
 let catalog = [];
 
 let stream = null;
@@ -330,26 +387,34 @@ function initApp(data) {
     'Лист: ' +
     (data.sheetName || '');
 
-  const select =
-    document.getElementById('batchSelect');
+  const storeSelect =
+    document.getElementById('storeSelect');
 
-  select.innerHTML =
-    '<option value="">— магазин / дата —</option>';
+  storeSelect.innerHTML =
+    '<option value="">— магазин —</option>';
 
-  batches.forEach(function(batch) {
+  const stores =
+    [...new Set(
+      batches
+        .map(function(batch) {
+          return batch.store;
+        })
+        .filter(Boolean)
+    )];
+
+  stores.sort();
+
+  stores.forEach(function(store) {
     const option =
       document.createElement('option');
 
     option.value =
-      batch.id;
+      store;
 
     option.textContent =
-      batch.label +
-      ' — ' +
-      batch.totalUnits +
-      ' шт.';
+      store;
 
-    select.appendChild(option);
+    storeSelect.appendChild(option);
   });
 
   document
@@ -363,20 +428,35 @@ function initApp(data) {
     .remove('hidden');
 
   setStatus(
-    'Выбери конкретную поставку. ' +
-    'Это защита от случайной покраски другого магазина или другой даты.',
+    'Выбери магазин, затем отметь одну или несколько дат поставки.',
     'search'
   );
 }
 
 
-async function selectBatch() {
-  const id =
+function parseBatchDate(value) {
+  const m =
+    String(value || '')
+      .match(/(\d{1,2})[.\-/](\d{1,2})/);
+
+  if (!m) return 0;
+
+  return (
+    (Number(m[2]) || 0) * 100 +
+    (Number(m[1]) || 0)
+  );
+}
+
+
+function renderDateChoices() {
+  selectedStore =
     document
-      .getElementById('batchSelect')
+      .getElementById('storeSelect')
       .value;
 
-  selectedBatchId = id;
+  selectedBatchIds = [];
+  selectedBatchMeta = [];
+  batchSummaries = {};
   catalog = [];
 
   blockedKey = '';
@@ -398,59 +478,385 @@ async function selectBatch() {
     .classList
     .add('hidden');
 
-  if (!id) {
+  const box =
+    document.getElementById('dateChoices');
+
+  box.innerHTML = '';
+
+  const actions =
+    document.getElementById('dateActions');
+
+  const loadBtn =
+    document.getElementById('loadDatesBtn');
+
+  if (!selectedStore) {
+    actions.classList.add('hidden');
+    loadBtn.classList.add('hidden');
+
     setStatus(
-      'Сначала выбери поставку.',
+      'Сначала выбери магазин.',
       'search'
     );
 
     return;
   }
 
-  try {
-    setStatus(
-      'Загружаю товары выбранной поставки…',
-      'search'
-    );
+  const storeBatches =
+    batches
+      .filter(function(batch) {
+        return batch.store === selectedStore;
+      })
+      .sort(function(a, b) {
+        return (
+          parseBatchDate(a.date) -
+          parseBatchDate(b.date)
+        );
+      });
 
-    const response =
-      await api(
-        'catalog',
-        {
-          batchId: id
-        }
-      );
+  storeBatches.forEach(function(batch) {
+    const label =
+      document.createElement('label');
 
-    catalog =
+    label.className =
+      'date-row';
+
+    const checkbox =
+      document.createElement('input');
+
+    checkbox.type =
+      'checkbox';
+
+    checkbox.value =
+      batch.id;
+
+    checkbox.className =
+      'date-check';
+
+    const main =
+      document.createElement('div');
+
+    main.className =
+      'date-row-main';
+
+    main.innerHTML =
+      '<div class="date-row-title">' +
+      escapeHtml(
+        batch.date ||
+        batch.label
+      ) +
+      '</div>' +
+      '<div class="date-row-meta">' +
+      batch.totalUnits +
+      ' шт. • ' +
+      batch.productRows +
+      ' строк</div>';
+
+    label.appendChild(checkbox);
+    label.appendChild(main);
+    box.appendChild(label);
+  });
+
+  actions.classList.remove('hidden');
+  loadBtn.classList.remove('hidden');
+
+  setStatus(
+    'Отметь нужные даты. Можно выбрать сразу несколько.',
+    'search'
+  );
+}
+
+
+function toggleAllDates(value) {
+  document
+    .querySelectorAll('.date-check')
+    .forEach(function(box) {
+      box.checked = value;
+    });
+}
+
+
+function combineSummaries() {
+  let expected = 0;
+  let accepted = 0;
+
+  Object
+    .values(batchSummaries)
+    .forEach(function(summary) {
+      if (!summary) return;
+
+      expected +=
+        Number(summary.expected || 0);
+
+      accepted +=
+        Number(summary.accepted || 0);
+    });
+
+  return {
+    expected: expected,
+    accepted: accepted,
+    remaining:
+      Math.max(
+        expected - accepted,
+        0
+      )
+  };
+}
+
+
+function primaryArticleKey(name) {
+  const aliases =
+    extractArticleAliases(name);
+
+  if (!aliases.length) {
+    return '';
+  }
+
+  return normalize(
+    aliases[0]
+  );
+}
+
+
+function mergeCatalogResponses(responses) {
+  const groups = {};
+
+  responses.forEach(function(response, index) {
+    const batch =
+      response.data.batch;
+
+    const batchId =
+      selectedBatchIds[index];
+
+    batchSummaries[batchId] =
+      response.data.summary;
+
+    const items =
       Array.isArray(response.data.catalog)
         ? response.data.catalog
         : [];
 
-    /*
-     * Готовим СТРОГИЙ список артикулов.
-     * Название/описание товара больше не является
-     * основанием для автоматического принятия.
-     */
+    items.forEach(function(item) {
+      const articleKey =
+        primaryArticleKey(item.name);
+
+      const brandParts =
+        tokens(item.name);
+
+      const brand =
+        brandParts.length
+          ? normalize(brandParts[0])
+          : '';
+
+      const groupKey =
+        articleKey
+          ? (
+              'ART|' +
+              brand +
+              '|' +
+              articleKey
+            )
+          : (
+              'NAME|' +
+              item.productKey
+            );
+
+      if (!groups[groupKey]) {
+        groups[groupKey] = {
+          productKey: groupKey,
+          name: item.name,
+          expected: 0,
+          accepted: 0,
+          routes: []
+        };
+      }
+
+      groups[groupKey].expected +=
+        Number(item.expected || 0);
+
+      groups[groupKey].accepted +=
+        Number(item.accepted || 0);
+
+      groups[groupKey]
+        .routes
+        .push({
+          batchId: batchId,
+          batchLabel: batch.label,
+          date: batch.date,
+          backendProductKey:
+            item.productKey,
+          expected:
+            Number(item.expected || 0),
+          accepted:
+            Number(item.accepted || 0)
+        });
+    });
+  });
+
+  const merged =
+    Object.values(groups);
+
+  merged.forEach(function(item) {
+    item.routes.sort(function(a, b) {
+      return (
+        parseBatchDate(a.date) -
+        parseBatchDate(b.date)
+      );
+    });
+  });
+
+  return merged;
+}
+
+
+async function loadSelectedBatches() {
+  const checked =
+    [...document
+      .querySelectorAll('.date-check:checked')];
+
+  if (!selectedStore) {
+    setStatus(
+      'Сначала выбери магазин.',
+      'bad'
+    );
+
+    return;
+  }
+
+  if (!checked.length) {
+    setStatus(
+      'Выбери хотя бы одну дату.',
+      'bad'
+    );
+
+    return;
+  }
+
+  selectedBatchIds =
+    checked.map(function(box) {
+      return box.value;
+    });
+
+  selectedBatchMeta =
+    selectedBatchIds
+      .map(function(id) {
+        return batches.find(function(batch) {
+          return batch.id === id;
+        });
+      })
+      .filter(Boolean)
+      .sort(function(a, b) {
+        return (
+          parseBatchDate(a.date) -
+          parseBatchDate(b.date)
+        );
+      });
+
+  /*
+   * Самая ранняя выбранная дата идёт первой.
+   * Если один артикул есть за 03, 04 и 05,
+   * сначала закрывается 03, потом 04, потом 05.
+   */
+  selectedBatchIds =
+    selectedBatchMeta
+      .map(function(batch) {
+        return batch.id;
+      });
+
+  catalog = [];
+  batchSummaries = {};
+
+  blockedKey = '';
+  blockedMisses = 0;
+  candidateKey = '';
+  candidateHits = 0;
+
+  document
+    .getElementById('startBtn')
+    .disabled = true;
+
+  document
+    .getElementById('statsCard')
+    .classList
+    .add('hidden');
+
+  document
+    .getElementById('batchInfo')
+    .classList
+    .add('hidden');
+
+  try {
+    setStatus(
+      'Объединяю выбранные даты в одну приёмку…',
+      'search'
+    );
+
+    const responses =
+      await Promise.all(
+        selectedBatchIds
+          .map(function(id) {
+            return api(
+              'catalog',
+              {
+                batchId: id
+              }
+            );
+          })
+      );
+
+    catalog =
+      mergeCatalogResponses(
+        responses
+      );
+
     prepareArticleCatalog();
 
-    const batch =
-      response.data.batch;
+    const totalUnits =
+      selectedBatchMeta
+        .reduce(function(sum, batch) {
+          return (
+            sum +
+            Number(batch.totalUnits || 0)
+          );
+        }, 0);
+
+    const totalRows =
+      selectedBatchMeta
+        .reduce(function(sum, batch) {
+          return (
+            sum +
+            Number(batch.productRows || 0)
+          );
+        }, 0);
+
+    const datesText =
+      selectedBatchMeta
+        .map(function(batch) {
+          return batch.date;
+        })
+        .join(', ');
 
     document
       .getElementById('shipment')
       .textContent =
-      '📦 ' + batch.label;
+      '📦 ' +
+      selectedStore +
+      ' — ' +
+      datesText;
 
     document
       .getElementById('batchInfo')
       .innerHTML =
       '<b>' +
-      escapeHtml(batch.label) +
+      escapeHtml(selectedStore) +
       '</b><br>' +
-      'Строк: ' +
-      batch.productRows +
-      ' • единиц: ' +
-      batch.totalUnits;
+      'Выбраны даты: ' +
+      escapeHtml(datesText) +
+      '<br>' +
+      'Всего: ' +
+      totalUnits +
+      ' шт. • ' +
+      totalRows +
+      ' строк';
 
     document
       .getElementById('batchInfo')
@@ -463,7 +869,7 @@ async function selectBatch() {
       .remove('hidden');
 
     updateSummary(
-      response.data.summary
+      combineSummaries()
     );
 
     document
@@ -471,7 +877,8 @@ async function selectBatch() {
       .disabled = false;
 
     setStatus(
-      'Готово. Теперь запускай камеру и показывай этикетки этой поставки.',
+      'Готово. Все выбранные даты объединены. ' +
+      'Сканируй товары вперемешку — переключаться между датами не нужно.',
       'search'
     );
   }
@@ -494,9 +901,9 @@ async function selectBatch() {
 ===================================================== */
 
 async function startScanner() {
-  if (!selectedBatchId) {
+  if (!selectedBatchIds.length) {
     setStatus(
-      'Сначала выбери поставку.',
+      'Сначала выбери магазин и даты.',
       'bad'
     );
 
@@ -697,7 +1104,7 @@ async function ocrLoop() {
   if (
     ocrBusy ||
     serverBusy ||
-    !selectedBatchId
+    !selectedBatchIds.length
   ) {
     setTimeout(
       ocrLoop,
@@ -2121,11 +2528,78 @@ function processLabelText(text) {
 }
 
 
+function getNextRoute(item) {
+  const routes =
+    Array.isArray(item.routes)
+      ? item.routes
+      : [];
+
+  for (
+    let i = 0;
+    i < routes.length;
+    i++
+  ) {
+    if (
+      Number(routes[i].accepted || 0)
+      <
+      Number(routes[i].expected || 0)
+    ) {
+      return routes[i];
+    }
+  }
+
+  return null;
+}
+
+
+function recalcMergedItem(item) {
+  if (
+    !item ||
+    !Array.isArray(item.routes)
+  ) {
+    return;
+  }
+
+  item.expected =
+    item.routes
+      .reduce(function(sum, route) {
+        return (
+          sum +
+          Number(route.expected || 0)
+        );
+      }, 0);
+
+  item.accepted =
+    item.routes
+      .reduce(function(sum, route) {
+        return (
+          sum +
+          Number(route.accepted || 0)
+        );
+      }, 0);
+}
+
+
 async function acceptProduct(item) {
   if (
     serverBusy ||
-    !selectedBatchId
+    !selectedBatchIds.length
   ) {
+    return;
+  }
+
+  const route =
+    getNextRoute(item);
+
+  if (!route) {
+    setStatus(
+      '⚠️ По этому артикулу уже принято всё количество за выбранные даты.<br><br>' +
+      '<b>' +
+      escapeHtml(item.name) +
+      '</b>',
+      'bad'
+    );
+
     return;
   }
 
@@ -2141,11 +2615,11 @@ async function acceptProduct(item) {
     ) +
     '</b><br>' +
     '<span class="product">' +
-    escapeHtml(
-      item.name
-    ) +
+    escapeHtml(item.name) +
     '</span><br><br>' +
-    'Отмечаю 1 штуку в столбце E…',
+    'Отмечаю 1 штуку в <b>' +
+    escapeHtml(route.batchLabel) +
+    '</b>…',
     'search'
   );
 
@@ -2155,15 +2629,17 @@ async function acceptProduct(item) {
         'accept',
         {
           batchId:
-            selectedBatchId,
+            route.batchId,
 
           productKey:
-            item.productKey
+            route.backendProductKey
         }
       );
 
     handleResult(
-      response.result
+      response.result,
+      item,
+      route
     );
   }
 
@@ -2182,42 +2658,48 @@ async function acceptProduct(item) {
 }
 
 
-function handleResult(res) {
+function handleResult(
+  res,
+  item,
+  route
+) {
   serverBusy = false;
 
   if (!res) {
     return;
   }
 
-  if (res.summary) {
-    updateSummary(
-      res.summary
-    );
+  if (
+    res.summary &&
+    route
+  ) {
+    batchSummaries[
+      route.batchId
+    ] =
+      res.summary;
   }
 
   if (
     res.type === 'complete' ||
     res.type === 'partial'
   ) {
-    const item =
-      catalog.find(
-        function(x) {
-          return (
-            x.productKey ===
-            res.productKey
-          );
-        }
-      );
-
-    if (item) {
-      item.accepted =
-        Number(
-          res.accepted || 0
-        );
+    if (route) {
+      route.accepted =
+        Number(res.accepted || 0);
     }
 
+    if (item) {
+      recalcMergedItem(item);
+    }
+
+    updateSummary(
+      combineSummaries()
+    );
+
     blockedKey =
-      res.productKey;
+      item
+        ? item.productKey
+        : res.productKey;
 
     blockedSince =
       Date.now();
@@ -2225,35 +2707,66 @@ function handleResult(res) {
     blockedMisses =
       0;
 
-    const complete =
-      res.type ===
-      'complete';
+    const mergedComplete =
+      item
+        ? (
+            Number(item.accepted || 0)
+            >=
+            Number(item.expected || 0)
+          )
+        : false;
+
+    const acceptedAll =
+      item
+        ? item.accepted
+        : res.accepted;
+
+    const expectedAll =
+      item
+        ? item.expected
+        : res.expected;
+
+    const remainingAll =
+      Math.max(
+        Number(expectedAll || 0) -
+        Number(acceptedAll || 0),
+        0
+      );
 
     setStatus(
       (
-        complete
+        mergedComplete
           ? '✅ '
           : '🟡 '
       ) +
       '<b>' +
       escapeHtml(
-        res.name
+        item
+          ? item.name
+          : res.name
       ) +
       '</b><br><br>' +
-      'Принято: <b>' +
-      res.accepted +
+      'Принято по выбранным датам: <b>' +
+      acceptedAll +
       '</b> из ' +
-      res.expected +
+      expectedAll +
       '<br>' +
       'Осталось: <b>' +
-      res.remaining +
+      remainingAll +
       '</b><br><br>' +
+      'Сейчас учтено в: <b>' +
+      escapeHtml(
+        route
+          ? route.batchLabel
+          : ''
+      ) +
+      '</b><br>' +
       (
         res.rowComplete
-          ? 'Ячейка E этой строки окрашена в зелёный.'
-          : 'Ячейка E этой строки окрашена в жёлтый.'
+          ? 'Ячейка E этой строки стала зелёной.'
+          : 'Ячейка E этой строки стала жёлтой.'
       ),
-      complete
+      mergedComplete
         ? 'ok'
         : 'warn'
     );
@@ -2266,36 +2779,52 @@ function handleResult(res) {
   }
 
   if (
-    res.type ===
-    'extra'
+    res.type === 'extra'
   ) {
-    blockedKey =
-      res.productKey;
+    if (route) {
+      route.accepted =
+        Number(
+          res.accepted ||
+          route.expected ||
+          0
+        );
+    }
 
-    blockedSince =
-      Date.now();
+    if (item) {
+      recalcMergedItem(item);
+    }
 
-    blockedMisses =
-      0;
+    if (
+      res.summary &&
+      route
+    ) {
+      batchSummaries[
+        route.batchId
+      ] =
+        res.summary;
+    }
+
+    updateSummary(
+      combineSummaries()
+    );
 
     setStatus(
-      '⚠️ По этой позиции уже принято всё количество:<br><br>' +
-      '<b>' +
+      '⚠️ В поставке <b>' +
       escapeHtml(
-        res.name
+        route
+          ? route.batchLabel
+          : ''
       ) +
-      '</b><br>' +
-      res.accepted +
-      ' из ' +
-      res.expected,
-      'bad'
+      '</b> этот артикул уже закрыт.<br><br>' +
+      'Следующая штука будет отнесена к следующей выбранной дате.',
+      'warn'
     );
 
     return;
   }
 
   setStatus(
-    '❌ Позиция не найдена в выбранной поставке.',
+    '❌ Позиция не найдена в выбранных поставках.',
     'bad'
   );
 }
