@@ -105,6 +105,7 @@ button:disabled{opacity:.45}
   padding:11px
 }
 .gray{background:#475569;color:#fff}
+.torch-on{background:#facc15;color:#111827}
 </style>
 </head>
 
@@ -185,6 +186,14 @@ button:disabled{opacity:.45}
       <div id="ocrBadge">OCR: запуск…</div>
     </div>
 
+    <button
+      id="torchBtn"
+      class="gray hidden"
+      onclick="toggleTorch()"
+    >
+      🔦 ВКЛЮЧИТЬ ФОНАРИК
+    </button>
+
     <div id="seen">
       Наведи всю наклейку в кадр.
     </div>
@@ -205,6 +214,8 @@ button:disabled{opacity:.45}
       Из таблицы ничего не удаляется и значения не меняются:
       сканер меняет только фон <b>ячейки E</b> найденной позиции.
       Желтый — принято не всё количество, зеленый — принято полностью.
+      Надпись «Жду смену товара» означает только защиту от двойного скана,
+      а не то, что следующая коробка уже принята.
     </div>
   </div>
 
@@ -234,6 +245,9 @@ let catalog = [];
 let stream = null;
 let track = null;
 
+let torchSupported = false;
+let torchOn = false;
+
 let worker = null;
 let ocrReady = false;
 let ocrBusy = false;
@@ -244,10 +258,13 @@ let pass = 0;
 let blockedKey = '';
 let blockedSince = 0;
 let blockedMisses = 0;
+let blockedFingerprint = null;
 
 let candidateKey = '';
 let candidateHits = 0;
 let candidateAt = 0;
+
+let notFoundHits = 0;
 
 
 /* =====================================================
@@ -463,6 +480,7 @@ function renderDateChoices() {
   blockedMisses = 0;
   candidateKey = '';
   candidateHits = 0;
+  notFoundHits = 0;
 
   document
     .getElementById('startBtn')
@@ -769,6 +787,7 @@ async function loadSelectedBatches() {
   blockedMisses = 0;
   candidateKey = '';
   candidateHits = 0;
+  notFoundHits = 0;
 
   document
     .getElementById('startBtn')
@@ -1028,12 +1047,84 @@ async function improveCamera() {
         advanced: advanced
       });
     }
+
+    /*
+     * Фонарик доступен не на всех браузерах/телефонах.
+     * Если камера сообщает поддержку torch — показываем кнопку.
+     */
+    torchSupported =
+      cap.torch === true ||
+      (
+        Array.isArray(cap.torch) &&
+        cap.torch.length > 0
+      );
+
+    const torchBtn =
+      document.getElementById('torchBtn');
+
+    if (torchSupported) {
+      torchBtn.classList.remove('hidden');
+    }
+    else {
+      torchBtn.classList.add('hidden');
+    }
   }
 
   catch(e) {
     console.log(
       'camera constraints',
       e
+    );
+  }
+}
+
+
+async function toggleTorch() {
+  if (
+    !track ||
+    !torchSupported
+  ) {
+    setStatus(
+      '⚠️ На этом устройстве браузер не даёт доступ к фонарику.',
+      'warn'
+    );
+
+    return;
+  }
+
+  const next =
+    !torchOn;
+
+  try {
+    await track.applyConstraints({
+      advanced: [
+        {
+          torch: next
+        }
+      ]
+    });
+
+    torchOn =
+      next;
+
+    const btn =
+      document.getElementById('torchBtn');
+
+    btn.textContent =
+      torchOn
+        ? '🔦 ВЫКЛЮЧИТЬ ФОНАРИК'
+        : '🔦 ВКЛЮЧИТЬ ФОНАРИК';
+
+    btn.classList.toggle(
+      'torch-on',
+      torchOn
+    );
+  }
+
+  catch(err) {
+    setStatus(
+      '⚠️ Не удалось переключить фонарик на этом телефоне.',
+      'warn'
     );
   }
 }
@@ -1118,8 +1209,17 @@ async function ocrLoop() {
   pass++;
 
   try {
+    /*
+     * Ускоренный цикл:
+     * 1) вся этикетка — обычный контраст;
+     * 2) вся этикетка — ч/б;
+     * 3) центральная часть.
+     *
+     * Повороты 90° убраны из постоянного цикла:
+     * они сильно замедляли переход ко второму распознаванию.
+     */
     const mode =
-      (pass - 1) % 5;
+      (pass - 1) % 3;
 
     let canvas;
     let label;
@@ -1148,7 +1248,7 @@ async function ocrLoop() {
         'этикетка / контраст';
     }
 
-    else if (mode === 2) {
+    else {
       await setOcrMode(6);
       canvas =
         captureLabel(
@@ -1158,30 +1258,6 @@ async function ocrLoop() {
         );
       label =
         'центр';
-    }
-
-    else if (mode === 3) {
-      await setOcrMode(11);
-      canvas =
-        captureLabel(
-          false,
-          90,
-          false
-        );
-      label =
-        '90°';
-    }
-
-    else {
-      await setOcrMode(11);
-      canvas =
-        captureLabel(
-          false,
-          -90,
-          false
-        );
-      label =
-        '-90°';
     }
 
     if (canvas) {
@@ -1207,8 +1283,17 @@ async function ocrLoop() {
 
       showSeen(text);
 
+      const confidence =
+        result &&
+        result.data
+          ? Number(
+              result.data.confidence || 0
+            )
+          : 0;
+
       processLabelText(
-        text
+        text,
+        confidence
       );
     }
   }
@@ -1231,7 +1316,7 @@ async function ocrLoop() {
 
     setTimeout(
       ocrLoop,
-      130
+      80
     );
   }
 }
@@ -1321,12 +1406,12 @@ function captureLabel(
 
   const maxW =
     centerOnly
-      ? 1500
-      : 1650;
+      ? 1250
+      : 1450;
 
   const scale =
     Math.min(
-      1.8,
+      1.55,
       maxW /
       Math.max(sw, 1)
     );
@@ -2206,6 +2291,9 @@ function findBestProduct(text) {
       let matchedArticle =
         '';
 
+      let matchedExact =
+        false;
+
 
       aliases.forEach(
         function(alias) {
@@ -2245,16 +2333,51 @@ function findBestProduct(text) {
                 candidate
               );
 
+            const candidateNorm =
+              normalize(
+                candidate
+              );
+
+            const exactNow =
+              (
+                candidateNorm ===
+                aliasNorm
+              )
+              ||
+              (
+                (
+                  hasDigit(aliasNorm) ||
+                  hasDigit(candidateNorm)
+                )
+                &&
+                canonicalMixed(
+                  candidateNorm
+                )
+                ===
+                canonicalMixed(
+                  aliasNorm
+                )
+              );
+
 
             if (
               score >
               bestScore
+              ||
+              (
+                score === bestScore &&
+                exactNow &&
+                !matchedExact
+              )
             ) {
               bestScore =
                 score;
 
               matchedArticle =
                 aliasNorm;
+
+              matchedExact =
+                exactNow;
             }
           }
         }
@@ -2331,16 +2454,50 @@ function findBestProduct(text) {
          * сразу не принимаем без бренда:
          * подтверждаем вторым кадром.
          */
+        /*
+         * Совпадение всё ещё строго по артикулу.
+         * Но точное/каноническое совпадение больше
+         * не ждёт второй OCR-кадр — принимаем сразу.
+         */
+        /*
+         * Сразу принимаем только реально прочитанный артикул.
+         * Совпадение по "похожести" больше никогда не считается
+         * достаточным для мгновенного принятия.
+         *
+         * Короткий чисто цифровой/буквенный код требует бренда
+         * и второго кадра — на этикетке много посторонних чисел/слов.
+         */
         strong:
-          finalScore >= .995 &&
+          matchedExact &&
+          finalScore >= .99 &&
+          matchedArticle.length >= 4 &&
           (
-            matchedArticle.length >= 6
-            ||
-            brand
+            (
+              /[A-ZА-Я]/.test(
+                matchedArticle
+              )
+              &&
+              /\d/.test(
+                matchedArticle
+              )
+            )
             ||
             (
-              !pureNumeric &&
-              !pureLetters
+              /^\d+$/.test(
+                matchedArticle
+              )
+              &&
+              matchedArticle.length >= 6
+            )
+            ||
+            (
+              /^[A-ZА-Я]+$/.test(
+                matchedArticle
+              )
+              &&
+              matchedArticle.length >= 6
+              &&
+              brand
             )
           )
       });
@@ -2416,15 +2573,190 @@ function findBestProduct(text) {
 
 
 /* =====================================================
+   ОПРЕДЕЛЕНИЕ СМЕНЫ ФИЗИЧЕСКОГО ТОВАРА
+
+   После успешного скана запоминаем очень маленький
+   "отпечаток" кадра. Если коробку убрали/заменили,
+   изображение заметно меняется и тот же артикул
+   можно принимать снова без долгого ожидания.
+===================================================== */
+
+function captureFingerprint() {
+  const video =
+    getVideo();
+
+  if (!video) {
+    return null;
+  }
+
+  const canvas =
+    document.createElement('canvas');
+
+  canvas.width = 24;
+  canvas.height = 18;
+
+  const ctx =
+    canvas.getContext(
+      '2d',
+      {
+        willReadFrequently: true
+      }
+    );
+
+  ctx.drawImage(
+    video,
+    0,
+    0,
+    video.videoWidth,
+    video.videoHeight,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+  try {
+    const data =
+      ctx.getImageData(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      ).data;
+
+    const arr = [];
+
+    for (
+      let i = 0;
+      i < data.length;
+      i += 4
+    ) {
+      arr.push(
+        Math.round(
+          data[i] * .299 +
+          data[i + 1] * .587 +
+          data[i + 2] * .114
+        )
+      );
+    }
+
+    return arr;
+  }
+
+  catch(e) {
+    return null;
+  }
+}
+
+
+function fingerprintDifference(a, b) {
+  if (
+    !a ||
+    !b ||
+    a.length !== b.length
+  ) {
+    return 0;
+  }
+
+  let sum = 0;
+
+  for (
+    let i = 0;
+    i < a.length;
+    i++
+  ) {
+    sum +=
+      Math.abs(
+        a[i] -
+        b[i]
+      );
+  }
+
+  return (
+    sum /
+    a.length /
+    255
+  );
+}
+
+
+/* =====================================================
    SCAN STATE
 ===================================================== */
 
-function processLabelText(text) {
+function hasMeaningfulLabelText(text) {
+  const parts =
+    tokens(text)
+      .map(normalize)
+      .filter(function(x) {
+        return x.length >= 3;
+      });
+
+  if (!parts.length) {
+    return false;
+  }
+
+  /*
+   * Считаем кадр осмысленным, если OCR реально увидел
+   * хотя бы кодоподобный фрагмент или несколько слов.
+   */
+  return (
+    parts.some(function(x) {
+      return (
+        x.length >= 4 &&
+        (
+          /\d/.test(x) ||
+          /^[A-ZА-Я]{4,}$/.test(x)
+        )
+      );
+    })
+    ||
+    parts.length >= 3
+  );
+}
+
+
+function processLabelText(text, confidence) {
   const best =
     findBestProduct(text);
 
   if (blockedKey) {
-    if (
+    const currentFingerprint =
+      captureFingerprint();
+
+    const moved =
+      blockedFingerprint &&
+      currentFingerprint
+        ? (
+            fingerprintDifference(
+              blockedFingerprint,
+              currentFingerprint
+            ) >= .11
+          )
+        : false;
+
+    /*
+     * Если коробку/этикетку физически поменяли,
+     * сразу разрешаем следующий скан — даже если
+     * у следующей коробки тот же самый артикул.
+     */
+    if (moved) {
+      blockedKey = '';
+      blockedMisses = 0;
+      blockedFingerprint = null;
+    }
+
+    else if (
+      best &&
+      best.productKey !==
+        blockedKey
+    ) {
+      blockedKey = '';
+      blockedMisses = 0;
+      blockedFingerprint = null;
+    }
+
+    else if (
       best &&
       best.productKey ===
         blockedKey
@@ -2432,37 +2764,28 @@ function processLabelText(text) {
       blockedMisses = 0;
 
       setStatus(
-        '✅ Эта штука уже учтена.<br><br>' +
-        '<b>Убери её из кадра и покажи следующую.</b>',
-        'ok'
+        '⏳ <b>Жду смену товара</b><br><br>' +
+        'Убери текущую этикетку из кадра и покажи следующую.',
+        'search'
       );
 
       return;
     }
 
-    if (
-      best &&
-      best.productKey !==
-        blockedKey
-    ) {
-      blockedKey = '';
-      blockedMisses = 0;
-    }
-
     else {
       blockedMisses++;
 
-      if (
-        blockedMisses < 3 ||
-        Date.now() -
-        blockedSince
-        < 1800
-      ) {
+      /*
+       * Если OCR уже два прохода не видит предыдущий товар,
+       * считаем, что его убрали. Не держим блокировку 1.8 сек.
+       */
+      if (blockedMisses < 2) {
         return;
       }
 
       blockedKey = '';
       blockedMisses = 0;
+      blockedFingerprint = null;
     }
   }
 
@@ -2470,8 +2793,35 @@ function processLabelText(text) {
     candidateKey = '';
     candidateHits = 0;
 
+    if (
+      hasMeaningfulLabelText(text) &&
+      Number(confidence || 0) >= 35
+    ) {
+      notFoundHits++;
+    }
+    else {
+      notFoundHits = 0;
+    }
+
+    /*
+     * Не показываем ошибку после одного случайно плохого кадра.
+     * Два осмысленных OCR-прохода без совпадения означают,
+     * что в выбранных датах такого артикула, скорее всего, нет.
+     */
+    if (notFoundHits >= 3) {
+      setStatus(
+        '❌ <b>Данного товара нет в этом списке</b><br><br>' +
+        '<span style="font-size:12px">' +
+        'Если этикетка размыта, подержи её ровно ещё секунду — сканер продолжает искать.' +
+        '</span>',
+        'bad'
+      );
+    }
+
     return;
   }
+
+  notFoundHits = 0;
 
   if (best.strong) {
     acceptProduct(best);
@@ -2487,7 +2837,7 @@ function processLabelText(text) {
       best.productKey &&
     now -
       candidateAt
-    < 5500
+    < 2200
   ) {
     candidateHits++;
   }
@@ -2514,7 +2864,7 @@ function processLabelText(text) {
       best.name
     ) +
     '</span><br><br>' +
-    'Подтверждаю ещё одним кадром…',
+    'Артикул прочитан не идеально — перепроверяю ещё одним кадром…',
     'search'
   );
 
@@ -2607,6 +2957,7 @@ async function acceptProduct(item) {
 
   candidateKey = '';
   candidateHits = 0;
+  notFoundHits = 0;
 
   setStatus(
     '✅ Артикул: <b>' +
@@ -2706,6 +3057,9 @@ function handleResult(
 
     blockedMisses =
       0;
+
+    blockedFingerprint =
+      captureFingerprint();
 
     const mergedComplete =
       item
