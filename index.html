@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Приёмка РИМС V5</title>
+<title>Приёмка РИМС V6</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
@@ -213,7 +213,7 @@ button:disabled{opacity:.45}
       <br><br>
       Из таблицы ничего не удаляется и значения не меняются:
       сканер меняет только фон <b>ячейки E</b> найденной позиции.
-      Желтый — принято не всё количество, зеленый — принято полностью.<br><br><b>Версия сканера: V5 COLOR=TRUTH</b>.
+      Желтый — принято не всё количество, зеленый — принято полностью.<br><br><b>Версия сканера: V6 FAST / GREEN=COMPLETE</b>.
       Надпись «Жду смену товара» означает только защиту от двойного скана,
       и не используется для определения статуса товара.
     </div>
@@ -1142,12 +1142,30 @@ async function initOcr() {
       'OCR: загружаю…'
     );
 
+    /*
+     * Почти все автомобильные артикулы — латиница/цифры.
+     * Русский OCR загружаем только если в артикулах выбранной
+     * поставки реально есть кириллица.
+     */
+    const needsRussian =
+      catalog.some(function(item) {
+        return (
+          (item.articleAliases || [])
+            .some(function(alias) {
+              return /[А-ЯЁ]/i.test(
+                String(alias || '')
+              );
+            })
+        );
+      });
+
     worker =
       await Tesseract
-        .createWorker([
-          'eng',
-          'rus'
-        ]);
+        .createWorker(
+          needsRussian
+            ? ['eng', 'rus']
+            : 'eng'
+        );
 
     await setOcrMode(11);
 
@@ -1211,56 +1229,26 @@ async function ocrLoop() {
   pass++;
 
   try {
+
     /*
-     * Ускоренный цикл:
-     * 1) вся этикетка — обычный контраст;
-     * 2) вся этикетка — ч/б;
-     * 3) центральная часть.
-     *
-     * Повороты 90° убраны из постоянного цикла:
-     * они сильно замедляли переход ко второму распознаванию.
+     * Быстрый режим:
+     * один полноэкранный OCR-проход вместо трёх разных.
+     * Чередуем мягкий и контрастный кадр.
      */
-    const mode =
-      (pass - 1) % 3;
+    const thresholdMode =
+      pass % 2 === 0;
 
-    let canvas;
-    let label;
+    const canvas =
+      captureLabel(
+        false,
+        0,
+        thresholdMode
+      );
 
-    if (mode === 0) {
-      await setOcrMode(11);
-      canvas =
-        captureLabel(
-          false,
-          0,
-          false
-        );
-      label =
-        'вся этикетка';
-    }
-
-    else if (mode === 1) {
-      await setOcrMode(11);
-      canvas =
-        captureLabel(
-          false,
-          0,
-          true
-        );
-      label =
-        'этикетка / контраст';
-    }
-
-    else {
-      await setOcrMode(6);
-      canvas =
-        captureLabel(
-          true,
-          0,
-          false
-        );
-      label =
-        'центр';
-    }
+    const label =
+      thresholdMode
+        ? 'быстрый контраст'
+        : 'быстрый';
 
     if (canvas) {
       setOcrBadge(
@@ -1318,7 +1306,7 @@ async function ocrLoop() {
 
     setTimeout(
       ocrLoop,
-      80
+      40
     );
   }
 }
@@ -1408,12 +1396,12 @@ function captureLabel(
 
   const maxW =
     centerOnly
-      ? 1250
-      : 1450;
+      ? 900
+      : 1050;
 
   const scale =
     Math.min(
-      1.55,
+      1.20,
       maxW /
       Math.max(sw, 1)
     );
@@ -2973,27 +2961,82 @@ async function tryAcceptOnServer(
     routeIndex >=
     routes.length
   ) {
-    serverBusy = false;
+    /*
+     * Даже после extra по всем датам не верим локальному состоянию.
+     * Перепроверяем реальные цвета E на сервере.
+     */
+    let allActuallyGreen =
+      true;
 
-    recalcMergedItem(
-      item
-    );
+    for (
+      let i = 0;
+      i < routes.length;
+      i++
+    ) {
+      const statusResponse =
+        await api(
+          'productstatus',
+          {
+            batchId:
+              routes[i].batchId,
 
-    updateSummary(
-      combineSummaries()
-    );
+            productKey:
+              routes[i].backendProductKey
+          }
+        );
 
-    setStatus(
-      '⚠️ <b>По этому артикулу сервер подтвердил, что всё количество уже принято по всем выбранным датам.</b><br><br>' +
-      escapeHtml(
-        item.article || ''
-      ) +
-      '<br>' +
-      escapeHtml(
-        item.name
-      ),
-      'bad'
-    );
+      const rows =
+        statusResponse &&
+        statusResponse.data &&
+        Array.isArray(
+          statusResponse.data.rows
+        )
+          ? statusResponse.data.rows
+          : [];
+
+      if (
+        !rows.length ||
+        rows.some(function(row) {
+          return !row.complete;
+        })
+      ) {
+        allActuallyGreen =
+          false;
+
+        break;
+      }
+    }
+
+    serverBusy =
+      false;
+
+    if (
+      allActuallyGreen
+    ) {
+      setStatus(
+        '⚠️ <b>Все строки этого артикула за выбранные даты реально зелёные.</b><br><br>' +
+        escapeHtml(
+          item.article || ''
+        ) +
+        '<br>' +
+        escapeHtml(
+          item.name
+        ),
+        'bad'
+      );
+    }
+
+    else {
+      /*
+       * Если хотя бы одна E НЕ зелёная,
+       * сообщение "уже принято" запрещено.
+       */
+      setStatus(
+        '🔄 В таблице есть непринятая строка этого артикула.<br><br>' +
+        '<b>Повтори скан — она не считается принятой.</b>',
+        'search'
+      );
+    }
 
     return;
   }
@@ -3053,13 +3096,6 @@ async function tryAcceptOnServer(
     res.type ===
     'extra'
   ) {
-    route.accepted =
-      Number(
-        res.accepted ||
-        route.expected ||
-        0
-      );
-
     if (
       res.summary
     ) {
@@ -3068,10 +3104,6 @@ async function tryAcceptOnServer(
       ] =
         res.summary;
     }
-
-    recalcMergedItem(
-      item
-    );
 
     return tryAcceptOnServer(
       item,
