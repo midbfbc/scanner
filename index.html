@@ -3,69 +3,123 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Приёмка РИМС V7</title>
+<title>Приёмка РИМС — Rewrite 1</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#0f172a;color:#fff;font-family:Arial,sans-serif}
-.wrap{max-width:700px;margin:auto;padding:12px}
-.card{background:#1e293b;border-radius:15px;padding:14px;margin-bottom:11px}
-.title{font-size:22px;font-weight:700;margin-bottom:12px}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;gap:8px}
-.num{font-size:26px;font-weight:700}
-.label{font-size:12px;color:#cbd5e1}
+body{
+  margin:0;
+  background:#0f172a;
+  color:#fff;
+  font-family:Arial,sans-serif
+}
+.wrap{
+  max-width:700px;
+  margin:auto;
+  padding:12px
+}
+.card{
+  background:#1e293b;
+  border-radius:15px;
+  padding:14px;
+  margin-bottom:11px
+}
+.title{
+  font-size:22px;
+  font-weight:700;
+  margin-bottom:12px
+}
+.stats{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  text-align:center;
+  gap:8px
+}
+.num{
+  font-size:26px;
+  font-weight:700
+}
+.label{
+  font-size:12px;
+  color:#cbd5e1
+}
 input,select{
-  width:100%;border:0;border-radius:10px;padding:14px;font-size:16px;
-  background:#fff;color:#111827
+  width:100%;
+  border:0;
+  border-radius:10px;
+  padding:14px;
+  font-size:16px;
+  background:#fff;
+  color:#111827
 }
-select{margin-top:8px}
+select{
+  margin-top:8px
+}
 button{
-  width:100%;border:0;border-radius:10px;padding:14px;font-size:17px;
-  font-weight:700;margin-top:8px
+  width:100%;
+  border:0;
+  border-radius:10px;
+  padding:14px;
+  font-size:17px;
+  font-weight:700;
+  margin-top:8px
 }
-button:disabled{opacity:.45}
-.blue{background:#2563eb;color:#fff}
-.ok{background:#14532d;border:2px solid #22c55e}
-.warn{background:#78350f;border:2px solid #f59e0b}
-.bad{background:#7f1d1d;border:2px solid #ef4444}
-.search{background:#1e3a8a;border:2px solid #3b82f6}
-.hidden{display:none!important}
-.small{font-size:12px;color:#cbd5e1;line-height:1.5}
-.status{min-height:78px;line-height:1.5}
-.product{font-size:20px;font-weight:700}
-
-.camera-card{padding:8px}
-.camera-wrap{
-  position:relative;width:100%;border-radius:13px;overflow:hidden;background:#000
+button:disabled{
+  opacity:.45
 }
-#video{
-  display:block;width:100%;min-height:260px;background:#000;object-fit:cover
+.blue{
+  background:#2563eb;
+  color:#fff
 }
-#frame{
-  position:absolute;left:3%;top:5%;width:94%;height:90%;
-  border:3px solid #3b82f6;border-radius:12px;pointer-events:none;
-  box-shadow:0 0 0 9999px rgba(0,0,0,.08)
+.gray{
+  background:#475569;
+  color:#fff
 }
-#frame::before{
-  content:"ЭТИКЕТКА ЦЕЛИКОМ";
-  position:absolute;top:8px;left:50%;transform:translateX(-50%);
-  background:#2563eb;padding:5px 10px;border-radius:7px;
-  font-size:12px;font-weight:700;white-space:nowrap
+.torch-on{
+  background:#facc15;
+  color:#111827
 }
-#ocrBadge{
-  position:absolute;right:8px;bottom:8px;z-index:3;
-  background:rgba(15,23,42,.86);padding:5px 8px;border-radius:7px;
-  font-size:11px;color:#dbeafe
+.ok{
+  background:#14532d;
+  border:2px solid #22c55e
 }
-#seen{
-  margin-top:8px;padding:6px 4px 2px;color:#94a3b8;
-  font-size:11px;line-height:1.35;word-break:break-word
+.warn{
+  background:#78350f;
+  border:2px solid #f59e0b
+}
+.bad{
+  background:#7f1d1d;
+  border:2px solid #ef4444
+}
+.search{
+  background:#1e3a8a;
+  border:2px solid #3b82f6
+}
+.hidden{
+  display:none!important
+}
+.small{
+  font-size:12px;
+  color:#cbd5e1;
+  line-height:1.5
+}
+.status{
+  min-height:78px;
+  line-height:1.5
+}
+.product{
+  font-size:20px;
+  font-weight:700
 }
 .batch-note{
-  padding:10px;border-radius:10px;background:#0f172a;
-  margin-top:10px;font-size:13px;line-height:1.45
+  padding:10px;
+  border-radius:10px;
+  background:#0f172a;
+  margin-top:10px;
+  font-size:13px;
+  line-height:1.45
 }
 .date-list{
   margin-top:10px;
@@ -78,20 +132,23 @@ button:disabled{opacity:.45}
   gap:10px;
   padding:10px 11px;
   background:#0f172a;
-  border-radius:10px;
-  cursor:pointer
+  border-radius:10px
 }
 .date-row input{
   width:auto;
   margin:0;
   transform:scale(1.25)
 }
-.date-row-main{flex:1}
-.date-row-title{font-weight:700}
+.date-row-main{
+  flex:1
+}
+.date-row-title{
+  font-weight:700
+}
 .date-row-meta{
+  margin-top:2px;
   font-size:12px;
-  color:#cbd5e1;
-  margin-top:2px
+  color:#cbd5e1
 }
 .date-actions{
   display:grid;
@@ -104,8 +161,66 @@ button:disabled{opacity:.45}
   font-size:14px;
   padding:11px
 }
-.gray{background:#475569;color:#fff}
-.torch-on{background:#facc15;color:#111827}
+
+.camera-card{
+  padding:8px
+}
+.camera-wrap{
+  position:relative;
+  width:100%;
+  overflow:hidden;
+  border-radius:13px;
+  background:#000
+}
+#video{
+  display:block;
+  width:100%;
+  min-height:260px;
+  object-fit:cover;
+  background:#000
+}
+#frame{
+  position:absolute;
+  left:3%;
+  top:5%;
+  width:94%;
+  height:90%;
+  border:3px solid #3b82f6;
+  border-radius:12px;
+  pointer-events:none;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.08)
+}
+#frame::before{
+  content:"ЭТИКЕТКА ЦЕЛИКОМ";
+  position:absolute;
+  top:8px;
+  left:50%;
+  transform:translateX(-50%);
+  background:#2563eb;
+  padding:5px 10px;
+  border-radius:7px;
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap
+}
+#ocrBadge{
+  position:absolute;
+  right:8px;
+  bottom:8px;
+  background:rgba(15,23,42,.88);
+  padding:5px 8px;
+  border-radius:7px;
+  font-size:11px;
+  color:#dbeafe
+}
+#seen{
+  margin-top:8px;
+  padding:5px 4px 2px;
+  color:#94a3b8;
+  font-size:11px;
+  line-height:1.35;
+  word-break:break-word
+}
 </style>
 </head>
 
@@ -115,58 +230,131 @@ button:disabled{opacity:.45}
 <div id="login" class="card">
   <div class="title">📦 Приёмка РИМС</div>
   <div class="small">PIN</div>
-  <input id="pin" type="password" inputmode="numeric" placeholder="PIN">
-  <button class="blue" onclick="login()">ВОЙТИ</button>
+  <input
+    id="pin"
+    type="password"
+    inputmode="numeric"
+    placeholder="PIN"
+  >
+  <button
+    class="blue"
+    onclick="login()"
+  >
+    ВОЙТИ
+  </button>
 </div>
+
 
 <div id="app" class="hidden">
 
   <div class="card">
-    <div class="title">Выбери магазин и даты</div>
-    <div id="sheetName" class="small"></div>
+    <div class="title">
+      Выбери магазин и даты
+    </div>
 
-    <select id="storeSelect" onchange="renderDateChoices()">
-      <option value="">— магазин —</option>
+    <div
+      id="sheetName"
+      class="small"
+    ></div>
+
+    <select
+      id="storeSelect"
+      onchange="renderDates()"
+    >
+      <option value="">
+        — магазин —
+      </option>
     </select>
 
-    <div id="dateChoices" class="date-list"></div>
+    <div
+      id="dateChoices"
+      class="date-list"
+    ></div>
 
-    <div id="dateActions" class="date-actions hidden">
-      <button class="gray" onclick="toggleAllDates(true)">ВЫБРАТЬ ВСЕ</button>
-      <button class="gray" onclick="toggleAllDates(false)">СНЯТЬ ВСЕ</button>
+    <div
+      id="dateActions"
+      class="date-actions hidden"
+    >
+      <button
+        class="gray"
+        onclick="toggleAllDates(true)"
+      >
+        ВЫБРАТЬ ВСЕ
+      </button>
+
+      <button
+        class="gray"
+        onclick="toggleAllDates(false)"
+      >
+        СНЯТЬ ВСЕ
+      </button>
     </div>
 
     <button
-      id="loadDatesBtn"
+      id="loadBtn"
       class="blue hidden"
-      onclick="loadSelectedBatches()"
+      onclick="loadSelection()"
     >
       ЗАГРУЗИТЬ ВЫБРАННЫЕ ДАТЫ
     </button>
 
-    <div id="batchInfo" class="batch-note hidden"></div>
+    <div
+      id="batchInfo"
+      class="batch-note hidden"
+    ></div>
   </div>
 
-  <div id="statsCard" class="card hidden">
-    <div id="shipment" class="title">📦 Приёмка</div>
+
+  <div
+    id="statsCard"
+    class="card hidden"
+  >
+    <div
+      id="shipment"
+      class="title"
+    >
+      📦 Приёмка
+    </div>
 
     <div class="stats">
       <div>
-        <div id="accepted" class="num">0</div>
-        <div class="label">принято</div>
+        <div
+          id="accepted"
+          class="num"
+        >
+          0
+        </div>
+        <div class="label">
+          принято
+        </div>
       </div>
 
       <div>
-        <div id="expected" class="num">0</div>
-        <div class="label">ожидается</div>
+        <div
+          id="expected"
+          class="num"
+        >
+          0
+        </div>
+        <div class="label">
+          ожидается
+        </div>
       </div>
 
       <div>
-        <div id="remaining" class="num">0</div>
-        <div class="label">осталось</div>
+        <div
+          id="remaining"
+          class="num"
+        >
+          0
+        </div>
+        <div class="label">
+          осталось
+        </div>
       </div>
     </div>
   </div>
+
 
   <div class="card">
     <button
@@ -179,11 +367,24 @@ button:disabled{opacity:.45}
     </button>
   </div>
 
-  <div id="cameraCard" class="card camera-card hidden">
+
+  <div
+    id="cameraCard"
+    class="card camera-card hidden"
+  >
     <div class="camera-wrap">
-      <video id="video" autoplay muted playsinline></video>
+      <video
+        id="video"
+        autoplay
+        muted
+        playsinline
+      ></video>
+
       <div id="frame"></div>
-      <div id="ocrBadge">OCR: запуск…</div>
+
+      <div id="ocrBadge">
+        OCR: запуск…
+      </div>
     </div>
 
     <button
@@ -199,23 +400,26 @@ button:disabled{opacity:.45}
     </div>
   </div>
 
-  <div id="statusCard" class="card search">
-    <div id="status" class="status">
-      Сначала выбери поставку.
+
+  <div
+    id="statusCard"
+    class="card search"
+  >
+    <div
+      id="status"
+      class="status"
+    >
+      Сначала выбери магазин и даты.
     </div>
   </div>
 
+
   <div class="card">
     <div class="small">
-      Сканер работает только с <b>магазином и датами, выбранными сверху</b>.
-      Можно отметить сразу несколько дат одного магазина.
-      Остальные магазины и остальные строки «Отчет РИМС» не участвуют.
-      <br><br>
-      Из таблицы ничего не удаляется и значения не меняются:
-      сканер меняет только фон <b>ячейки E</b> найденной позиции.
-      Желтый — принято не всё количество, зеленый — принято полностью.<br><br><b>Версия сканера: V7 • E=ИСТИНА • FAST</b>.
-      Надпись «Жду смену товара» означает только защиту от двойного скана,
-      и не используется для определения статуса товара.
+      <b>REWRITE 1.</b>
+      Статус товара определяет только реальная ячейка E в «Отчет РИМС».
+      Белая E = 0, жёлтая = частично, ярко-зелёная = полностью.
+      Старая логика и старые счётчики прошлых версий не используются.
     </div>
   </div>
 
@@ -224,29 +428,31 @@ button:disabled{opacity:.45}
 
 
 <script>
-/*
- * Оставляем тот же URL отдельного scanner Apps Script-проекта.
- * После замены Code.gs нужно создать новую версию этого развертывания,
- * сохранив существующий /exec URL.
- */
 const API =
 'https://script.google.com/macros/s/AKfycby83Hxy4yg9Gtv5UaObBTqHJ4fu_9Vy5Fwuc-E6Hy9tKV09Q9z2MUpkanFRYNsI_J8r/exec';
 
+const REQUIRED_BACKEND =
+'REWRITE_1_E_IS_TRUTH';
+
+
 let accessPin =
-  localStorage.getItem('warehousePin') || '';
+  localStorage.getItem(
+    'warehousePin'
+  ) || '';
+
 
 let batches = [];
 let selectedStore = '';
 let selectedBatchIds = [];
-let selectedBatchMeta = [];
-let batchSummaries = {};
 let catalog = [];
+
 
 let stream = null;
 let track = null;
 
 let torchSupported = false;
 let torchOn = false;
+
 
 let worker = null;
 let ocrReady = false;
@@ -255,371 +461,643 @@ let serverBusy = false;
 
 let pass = 0;
 
-let blockedKey = '';
-let blockedSince = 0;
-let blockedMisses = 0;
-let blockedFingerprint = null;
 
+/*
+ * Защита от двойного считывания
+ * одной и той же физической коробки.
+ */
+let blockedArticleKey = '';
+let blockedClearFrames = 0;
+
+
+/*
+ * Для нечёткого OCR совпадения.
+ */
 let candidateKey = '';
 let candidateHits = 0;
 let candidateAt = 0;
 
+
+/*
+ * "Нет в списке" только после
+ * нескольких нормальных OCR-кадров.
+ */
 let notFoundHits = 0;
 
 
-/* =====================================================
+/* ============================================================
    API
-===================================================== */
+============================================================ */
 
-function api(action, params = {}) {
-  return new Promise(function(resolve, reject) {
-    const callback =
-      '__rims_cb_' +
-      Date.now() +
-      '_' +
-      Math.random().toString(36).slice(2);
+function api(
+  action,
+  params = {}
+) {
+  return new Promise(
+    function(
+      resolve,
+      reject
+    ) {
+      const callback =
+        '__rewrite_cb_' +
+        Date.now() +
+        '_' +
+        Math.random()
+          .toString(36)
+          .slice(2);
 
-    const script =
-      document.createElement('script');
 
-    const timer =
-      setTimeout(function() {
-        cleanup();
-        reject(
-          new Error('Apps Script не ответил')
-        );
-      }, 20000);
-
-    function cleanup() {
-      clearTimeout(timer);
-
-      try {
-        delete window[callback];
-      } catch(e) {}
-
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
-    }
-
-    window[callback] =
-      function(data) {
-        cleanup();
-
-        if (data && data.ok) {
-          resolve(data);
-        }
-        else {
-          reject(
-            new Error(
-              data && data.error
-                ? data.error
-                : 'Ошибка API'
-            )
+      const script =
+        document
+          .createElement(
+            'script'
           );
+
+
+      const timer =
+        setTimeout(
+          function() {
+            cleanup();
+
+            reject(
+              new Error(
+                'Apps Script не ответил'
+              )
+            );
+          },
+          20000
+        );
+
+
+      function cleanup() {
+        clearTimeout(
+          timer
+        );
+
+
+        try {
+          delete window[
+            callback
+          ];
         }
-      };
 
-    const query =
-      new URLSearchParams(
-        Object.assign({
-          action: action,
-          pin: accessPin,
-          callback: callback,
-          _: Date.now()
-        }, params)
-      );
+        catch(e) {}
 
-    script.src =
-      API +
-      '?' +
-      query.toString();
 
-    script.onerror =
-      function() {
-        cleanup();
+        if (
+          script.parentNode
+        ) {
+          script
+            .parentNode
+            .removeChild(
+              script
+            );
+        }
+      }
 
-        reject(
-          new Error(
-            'Не удалось подключиться к Apps Script'
+
+      window[
+        callback
+      ] =
+        function(data) {
+          cleanup();
+
+
+          if (
+            data &&
+            data.ok
+          ) {
+            resolve(
+              data
+            );
+          }
+
+          else {
+            reject(
+              new Error(
+                data &&
+                data.error
+                  ? data.error
+                  : 'Ошибка API'
+              )
+            );
+          }
+        };
+
+
+      const query =
+        new URLSearchParams(
+          Object.assign(
+            {
+              action:
+                action,
+
+              pin:
+                accessPin,
+
+              callback:
+                callback,
+
+              _:
+                Date.now()
+            },
+
+            params
           )
         );
-      };
 
-    document.body.appendChild(script);
-  });
+
+      script.src =
+        API +
+        '?' +
+        query.toString();
+
+
+      script.onerror =
+        function() {
+          cleanup();
+
+          reject(
+            new Error(
+              'Не удалось подключиться к Apps Script'
+            )
+          );
+        };
+
+
+      document
+        .body
+        .appendChild(
+          script
+        );
+    }
+  );
 }
 
 
-/* =====================================================
-   LOGIN / BATCHES
-===================================================== */
+/* ============================================================
+   LOGIN
+============================================================ */
 
 async function login() {
   const value =
     document
-      .getElementById('pin')
+      .getElementById(
+        'pin'
+      )
       .value
       .trim();
 
-  if (!value) return;
 
-  accessPin = value;
+  if (!value) {
+    return;
+  }
+
+
+  accessPin =
+    value;
+
 
   try {
     const response =
-      await api('init');
+      await api(
+        'init'
+      );
 
-    localStorage.setItem(
-      'warehousePin',
-      accessPin
+
+    initApp(
+      response.data
     );
 
-    initApp(response.data);
+
+    localStorage
+      .setItem(
+        'warehousePin',
+        accessPin
+      );
   }
 
   catch(err) {
     if (
-      String(err.message)
-        .includes('BAD_PIN')
+      String(
+        err.message
+      )
+      .includes(
+        'BAD_PIN'
+      )
     ) {
-      alert('Неверный PIN');
+      alert(
+        'Неверный PIN'
+      );
     }
+
     else {
-      alert(err.message);
+      alert(
+        err.message
+      );
     }
   }
 }
 
 
 function initApp(data) {
-  /*
-   * ЖЁСТКАЯ ПРОВЕРКА РАЗВЁРТЫВАНИЯ.
-   * Если Apps Script не V7, сканер вообще не запускается,
-   * чтобы старая логика больше не могла врать про "уже принято".
-   */
   if (
-    !data ||
-    data.version !== 'V7_E_CELL_ONLY'
+    !data
+    ||
+    data.version !==
+    REQUIRED_BACKEND
   ) {
     document
-      .getElementById('login')
+      .getElementById(
+        'login'
+      )
       .classList
-      .add('hidden');
+      .add(
+        'hidden'
+      );
+
 
     document
-      .getElementById('app')
+      .getElementById(
+        'app'
+      )
       .classList
-      .remove('hidden');
+      .remove(
+        'hidden'
+      );
+
 
     document
-      .getElementById('startBtn')
-      .disabled = true;
+      .getElementById(
+        'startBtn'
+      )
+      .disabled =
+      true;
+
 
     setStatus(
-      '❌ <b>Apps Script не обновлён до V7.</b><br><br>' +
-      'Сейчас backend: <b>' +
+      '❌ <b>Работает старый Apps Script.</b><br><br>' +
+      'Нужен backend: <b>' +
+      REQUIRED_BACKEND +
+      '</b><br>' +
+      'Сейчас: <b>' +
       escapeHtml(
-        data && data.version
+        data &&
+        data.version
           ? data.version
-          : 'старая версия'
+          : 'не определён'
       ) +
-      '</b><br><br>' +
-      'Нужно создать новую версию развертывания Apps Script.',
+      '</b>',
       'bad'
     );
+
 
     return;
   }
 
+
   batches =
-    Array.isArray(data.batches)
+    Array.isArray(
+      data.batches
+    )
       ? data.batches
       : [];
 
+
   document
-    .getElementById('sheetName')
+    .getElementById(
+      'sheetName'
+    )
     .textContent =
     'Лист: ' +
-    (data.sheetName || '') +
+    (
+      data.sheetName ||
+      ''
+    ) +
     ' • backend: ' +
-    (data.version || 'не определён');
+    data.version;
 
-  const storeSelect =
-    document.getElementById('storeSelect');
-
-  storeSelect.innerHTML =
-    '<option value="">— магазин —</option>';
 
   const stores =
-    [...new Set(
-      batches
-        .map(function(batch) {
-          return batch.store;
-        })
-        .filter(Boolean)
-    )];
+    [
+      ...new Set(
+        batches
+          .map(
+            function(batch) {
+              return batch.store;
+            }
+          )
+          .filter(
+            Boolean
+          )
+      )
+    ]
+    .sort();
 
-  stores.sort();
 
-  stores.forEach(function(store) {
-    const option =
-      document.createElement('option');
+  const select =
+    document
+      .getElementById(
+        'storeSelect'
+      );
 
-    option.value =
-      store;
 
-    option.textContent =
-      store;
+  select.innerHTML =
+    '<option value="">— магазин —</option>';
 
-    storeSelect.appendChild(option);
-  });
+
+  stores.forEach(
+    function(store) {
+      const option =
+        document
+          .createElement(
+            'option'
+          );
+
+
+      option.value =
+        store;
+
+
+      option.textContent =
+        store;
+
+
+      select.appendChild(
+        option
+      );
+    }
+  );
+
 
   document
-    .getElementById('login')
+    .getElementById(
+      'login'
+    )
     .classList
-    .add('hidden');
+    .add(
+      'hidden'
+    );
+
 
   document
-    .getElementById('app')
+    .getElementById(
+      'app'
+    )
     .classList
-    .remove('hidden');
+    .remove(
+      'hidden'
+    );
+
 
   setStatus(
-    'Выбери магазин, затем отметь одну или несколько дат поставки.',
+    'Выбери магазин и одну или несколько дат.',
     'search'
   );
 }
 
 
-function parseBatchDate(value) {
-  const m =
-    String(value || '')
-      .match(/(\d{1,2})[.\-/](\d{1,2})/);
+/* ============================================================
+   STORE / DATES
+============================================================ */
 
-  if (!m) return 0;
+function dateNumber(value) {
+  const m =
+    String(
+      value || ''
+    )
+    .match(
+      /(\d{1,2})[.\-/](\d{1,2})/
+    );
+
+
+  if (!m) {
+    return 0;
+  }
+
 
   return (
-    (Number(m[2]) || 0) * 100 +
-    (Number(m[1]) || 0)
+    Number(
+      m[2]
+    ) *
+    100
+    +
+    Number(
+      m[1]
+    )
   );
 }
 
 
-function renderDateChoices() {
+function renderDates() {
   selectedStore =
     document
-      .getElementById('storeSelect')
+      .getElementById(
+        'storeSelect'
+      )
       .value;
 
+
   selectedBatchIds = [];
-  selectedBatchMeta = [];
-  batchSummaries = {};
   catalog = [];
 
-  blockedKey = '';
-  blockedMisses = 0;
-  candidateKey = '';
-  candidateHits = 0;
-  notFoundHits = 0;
+
+  resetScanState();
+
 
   document
-    .getElementById('startBtn')
-    .disabled = true;
+    .getElementById(
+      'startBtn'
+    )
+    .disabled =
+    true;
+
 
   document
-    .getElementById('statsCard')
+    .getElementById(
+      'statsCard'
+    )
     .classList
-    .add('hidden');
+    .add(
+      'hidden'
+    );
+
 
   document
-    .getElementById('batchInfo')
+    .getElementById(
+      'batchInfo'
+    )
     .classList
-    .add('hidden');
+    .add(
+      'hidden'
+    );
+
 
   const box =
-    document.getElementById('dateChoices');
+    document
+      .getElementById(
+        'dateChoices'
+      );
 
-  box.innerHTML = '';
+
+  box.innerHTML =
+    '';
+
 
   const actions =
-    document.getElementById('dateActions');
+    document
+      .getElementById(
+        'dateActions'
+      );
+
 
   const loadBtn =
-    document.getElementById('loadDatesBtn');
+    document
+      .getElementById(
+        'loadBtn'
+      );
+
 
   if (!selectedStore) {
-    actions.classList.add('hidden');
-    loadBtn.classList.add('hidden');
+    actions
+      .classList
+      .add(
+        'hidden'
+      );
+
+
+    loadBtn
+      .classList
+      .add(
+        'hidden'
+      );
+
 
     setStatus(
       'Сначала выбери магазин.',
       'search'
     );
 
+
     return;
   }
 
-  const storeBatches =
+
+  const list =
     batches
-      .filter(function(batch) {
-        return batch.store === selectedStore;
-      })
-      .sort(function(a, b) {
-        return (
-          parseBatchDate(a.date) -
-          parseBatchDate(b.date)
-        );
-      });
+      .filter(
+        function(batch) {
+          return (
+            batch.store ===
+            selectedStore
+          );
+        }
+      )
+      .sort(
+        function(a, b) {
+          return (
+            dateNumber(
+              a.date
+            )
+            -
+            dateNumber(
+              b.date
+            )
+          );
+        }
+      );
 
-  storeBatches.forEach(function(batch) {
-    const label =
-      document.createElement('label');
 
-    label.className =
-      'date-row';
+  list.forEach(
+    function(batch) {
+      const label =
+        document
+          .createElement(
+            'label'
+          );
 
-    const checkbox =
-      document.createElement('input');
 
-    checkbox.type =
-      'checkbox';
+      label.className =
+        'date-row';
 
-    checkbox.value =
-      batch.id;
 
-    checkbox.className =
-      'date-check';
+      const input =
+        document
+          .createElement(
+            'input'
+          );
 
-    const main =
-      document.createElement('div');
 
-    main.className =
-      'date-row-main';
+      input.type =
+        'checkbox';
 
-    main.innerHTML =
-      '<div class="date-row-title">' +
-      escapeHtml(
-        batch.date ||
-        batch.label
-      ) +
-      '</div>' +
-      '<div class="date-row-meta">' +
-      batch.totalUnits +
-      ' шт. • ' +
-      batch.productRows +
-      ' строк</div>';
 
-    label.appendChild(checkbox);
-    label.appendChild(main);
-    box.appendChild(label);
-  });
+      input.className =
+        'date-check';
 
-  actions.classList.remove('hidden');
-  loadBtn.classList.remove('hidden');
+
+      input.value =
+        batch.id;
+
+
+      const main =
+        document
+          .createElement(
+            'div'
+          );
+
+
+      main.className =
+        'date-row-main';
+
+
+      main.innerHTML =
+        '<div class="date-row-title">' +
+        escapeHtml(
+          batch.date ||
+          batch.label
+        ) +
+        '</div>' +
+        '<div class="date-row-meta">' +
+        batch.totalUnits +
+        ' шт. • ' +
+        batch.productRows +
+        ' строк</div>';
+
+
+      label.appendChild(
+        input
+      );
+
+
+      label.appendChild(
+        main
+      );
+
+
+      box.appendChild(
+        label
+      );
+    }
+  );
+
+
+  actions
+    .classList
+    .remove(
+      'hidden'
+    );
+
+
+  loadBtn
+    .classList
+    .remove(
+      'hidden'
+    );
+
 
   setStatus(
-    'Отметь нужные даты. Можно выбрать сразу несколько.',
+    'Отметь даты, которые приехали вместе.',
     'search'
   );
 }
@@ -627,159 +1105,27 @@ function renderDateChoices() {
 
 function toggleAllDates(value) {
   document
-    .querySelectorAll('.date-check')
-    .forEach(function(box) {
-      box.checked = value;
-    });
-}
-
-
-function combineSummaries() {
-  let expected = 0;
-  let accepted = 0;
-
-  Object
-    .values(batchSummaries)
-    .forEach(function(summary) {
-      if (!summary) return;
-
-      expected +=
-        Number(summary.expected || 0);
-
-      accepted +=
-        Number(summary.accepted || 0);
-    });
-
-  return {
-    expected: expected,
-    accepted: accepted,
-    remaining:
-      Math.max(
-        expected - accepted,
-        0
-      )
-  };
-}
-
-
-function primaryArticleKey(name) {
-  const aliases =
-    extractArticleAliases(name);
-
-  if (!aliases.length) {
-    return '';
-  }
-
-  return normalize(
-    aliases[0]
-  );
-}
-
-
-function mergeCatalogResponses(responses) {
-  const groups = {};
-
-  responses.forEach(function(response, index) {
-    const batch =
-      response.data.batch;
-
-    const batchId =
-      selectedBatchIds[index];
-
-    batchSummaries[batchId] =
-      response.data.summary;
-
-    const items =
-      Array.isArray(response.data.catalog)
-        ? response.data.catalog
-        : [];
-
-    items.forEach(function(item) {
-      const articleKey =
-        primaryArticleKey(item.name);
-
-      const brandParts =
-        tokens(item.name);
-
-      const brand =
-        brandParts.length
-          ? normalize(brandParts[0])
-          : '';
-
-      const groupKey =
-        articleKey
-          ? (
-              'ART|' +
-              brand +
-              '|' +
-              articleKey
-            )
-          : (
-              'NAME|' +
-              item.productKey
-            );
-
-      if (!groups[groupKey]) {
-        groups[groupKey] = {
-          productKey: groupKey,
-          name: item.name,
-          expected: 0,
-          accepted: 0,
-          routes: []
-        };
+    .querySelectorAll(
+      '.date-check'
+    )
+    .forEach(
+      function(box) {
+        box.checked =
+          value;
       }
-
-      groups[groupKey].expected +=
-        Number(item.expected || 0);
-
-      groups[groupKey].accepted +=
-        Number(item.accepted || 0);
-
-      groups[groupKey]
-        .routes
-        .push({
-          batchId: batchId,
-          batchLabel: batch.label,
-          date: batch.date,
-          backendProductKey:
-            item.productKey,
-          expected:
-            Number(item.expected || 0),
-          accepted:
-            Number(item.accepted || 0)
-        });
-    });
-  });
-
-  const merged =
-    Object.values(groups);
-
-  merged.forEach(function(item) {
-    item.routes.sort(function(a, b) {
-      return (
-        parseBatchDate(a.date) -
-        parseBatchDate(b.date)
-      );
-    });
-  });
-
-  return merged;
+    );
 }
 
 
-async function loadSelectedBatches() {
+async function loadSelection() {
   const checked =
-    [...document
-      .querySelectorAll('.date-check:checked')];
+    [
+      ...document
+        .querySelectorAll(
+          '.date-check:checked'
+        )
+    ];
 
-  if (!selectedStore) {
-    setStatus(
-      'Сначала выбери магазин.',
-      'bad'
-    );
-
-    return;
-  }
 
   if (!checked.length) {
     setStatus(
@@ -790,155 +1136,173 @@ async function loadSelectedBatches() {
     return;
   }
 
-  selectedBatchIds =
-    checked.map(function(box) {
-      return box.value;
-    });
 
-  selectedBatchMeta =
-    selectedBatchIds
-      .map(function(id) {
-        return batches.find(function(batch) {
-          return batch.id === id;
-        });
-      })
-      .filter(Boolean)
-      .sort(function(a, b) {
-        return (
-          parseBatchDate(a.date) -
-          parseBatchDate(b.date)
-        );
-      });
+  selectedBatchIds =
+    checked
+      .map(
+        function(box) {
+          return box.value;
+        }
+      );
+
 
   /*
-   * Самая ранняя выбранная дата идёт первой.
-   * Если один артикул есть за 03, 04 и 05,
-   * сначала закрывается 03, потом 04, потом 05.
+   * Старые даты раньше новых.
    */
-  selectedBatchIds =
-    selectedBatchMeta
-      .map(function(batch) {
-        return batch.id;
-      });
+  selectedBatchIds.sort(
+    function(a, b) {
+      const ba =
+        batches.find(
+          function(x) {
+            return x.id === a;
+          }
+        );
 
-  catalog = [];
-  batchSummaries = {};
+      const bb =
+        batches.find(
+          function(x) {
+            return x.id === b;
+          }
+        );
 
-  blockedKey = '';
-  blockedMisses = 0;
-  candidateKey = '';
-  candidateHits = 0;
-  notFoundHits = 0;
+      return (
+        dateNumber(
+          ba ? ba.date : ''
+        )
+        -
+        dateNumber(
+          bb ? bb.date : ''
+        )
+      );
+    }
+  );
 
-  document
-    .getElementById('startBtn')
-    .disabled = true;
 
-  document
-    .getElementById('statsCard')
-    .classList
-    .add('hidden');
+  resetScanState();
 
-  document
-    .getElementById('batchInfo')
-    .classList
-    .add('hidden');
+
+  setStatus(
+    'Загружаю товары выбранных дат…',
+    'search'
+  );
+
 
   try {
-    setStatus(
-      'Объединяю выбранные даты в одну приёмку…',
-      'search'
-    );
-
-    const responses =
-      await Promise.all(
-        selectedBatchIds
-          .map(function(id) {
-            return api(
-              'catalog',
-              {
-                batchId: id
-              }
-            );
-          })
+    const response =
+      await api(
+        'catalog',
+        {
+          batchIds:
+            selectedBatchIds
+              .join('~')
+        }
       );
+
 
     catalog =
-      mergeCatalogResponses(
-        responses
-      );
+      Array.isArray(
+        response.data.catalog
+      )
+        ? response.data.catalog
+        : [];
 
-    prepareArticleCatalog();
 
-    const totalUnits =
-      selectedBatchMeta
-        .reduce(function(sum, batch) {
-          return (
-            sum +
-            Number(batch.totalUnits || 0)
-          );
-        }, 0);
+    prepareCatalog();
 
-    const totalRows =
-      selectedBatchMeta
-        .reduce(function(sum, batch) {
-          return (
-            sum +
-            Number(batch.productRows || 0)
-          );
-        }, 0);
+
+    updateSummary(
+      response.data.summary
+    );
+
+
+    const selected =
+      selectedBatchIds
+        .map(
+          function(id) {
+            return batches.find(
+              function(batch) {
+                return (
+                  batch.id === id
+                );
+              }
+            );
+          }
+        )
+        .filter(
+          Boolean
+        );
+
 
     const datesText =
-      selectedBatchMeta
-        .map(function(batch) {
-          return batch.date;
-        })
+      selected
+        .map(
+          function(batch) {
+            return batch.date;
+          }
+        )
         .join(', ');
 
+
     document
-      .getElementById('shipment')
+      .getElementById(
+        'shipment'
+      )
       .textContent =
       '📦 ' +
       selectedStore +
       ' — ' +
       datesText;
 
+
     document
-      .getElementById('batchInfo')
+      .getElementById(
+        'batchInfo'
+      )
       .innerHTML =
       '<b>' +
-      escapeHtml(selectedStore) +
+      escapeHtml(
+        selectedStore
+      ) +
       '</b><br>' +
       'Выбраны даты: ' +
-      escapeHtml(datesText) +
+      escapeHtml(
+        datesText
+      ) +
       '<br>' +
-      'Всего: ' +
-      totalUnits +
-      ' шт. • ' +
-      totalRows +
-      ' строк';
+      'Артикулов для автоматического сканирования: ' +
+      catalog.length;
+
 
     document
-      .getElementById('batchInfo')
+      .getElementById(
+        'batchInfo'
+      )
       .classList
-      .remove('hidden');
+      .remove(
+        'hidden'
+      );
+
 
     document
-      .getElementById('statsCard')
+      .getElementById(
+        'statsCard'
+      )
       .classList
-      .remove('hidden');
+      .remove(
+        'hidden'
+      );
 
-    updateSummary(
-      combineSummaries()
-    );
 
     document
-      .getElementById('startBtn')
-      .disabled = false;
+      .getElementById(
+        'startBtn'
+      )
+      .disabled =
+      false;
+
 
     setStatus(
-      'Готово. Все выбранные даты объединены. ' +
-      'Сканируй товары вперемешку — переключаться между датами не нужно.',
+      'Готово. Запускай камеру.',
       'search'
     );
   }
@@ -956,85 +1320,99 @@ async function loadSelectedBatches() {
 }
 
 
-/* =====================================================
-   CAMERA
-===================================================== */
+/* ============================================================
+   CAMERA + TORCH
+============================================================ */
 
 async function startScanner() {
-  if (!selectedBatchIds.length) {
+  if (
+    !selectedBatchIds.length
+  ) {
     setStatus(
-      'Сначала выбери магазин и даты.',
+      'Сначала выбери даты.',
       'bad'
     );
 
     return;
   }
 
-  if (!catalog.length) {
-    setStatus(
-      'В выбранной поставке нет товаров.',
-      'bad'
-    );
-
-    return;
-  }
 
   try {
-    setStatus(
-      'Запускаю камеру…',
-      'search'
-    );
-
     if (!stream) {
       stream =
         await navigator
           .mediaDevices
           .getUserMedia({
-            audio: false,
+            audio:
+              false,
+
             video: {
               facingMode: {
-                ideal: 'environment'
+                ideal:
+                  'environment'
               },
+
               width: {
-                ideal: 1920
+                ideal:
+                  1920
               },
+
               height: {
-                ideal: 1080
+                ideal:
+                  1080
               }
             }
           });
 
+
       const video =
         document
-          .getElementById('video');
+          .getElementById(
+            'video'
+          );
+
 
       video.srcObject =
         stream;
 
+
       await video.play();
+
 
       track =
         stream
           .getVideoTracks()[0];
 
+
       await improveCamera();
     }
 
-    document
-      .getElementById('cameraCard')
-      .classList
-      .remove('hidden');
 
     document
-      .getElementById('startBtn')
+      .getElementById(
+        'cameraCard'
+      )
       .classList
-      .add('hidden');
+      .remove(
+        'hidden'
+      );
+
+
+    document
+      .getElementById(
+        'startBtn'
+      )
+      .classList
+      .add(
+        'hidden'
+      );
+
 
     setStatus(
-      'Помести <b>всю товарную этикетку</b> в синюю рамку. ' +
-      'Артикул система ищет сама.',
+      'Наведи всю этикетку в синюю рамку.',
       'search'
     );
+
 
     if (!worker) {
       await initOcr();
@@ -1043,7 +1421,7 @@ async function startScanner() {
 
   catch(err) {
     setStatus(
-      '❌ Не удалось запустить камеру:<br><br>' +
+      '❌ Не удалось запустить камеру:<br>' +
       escapeHtml(
         err.message ||
         String(err)
@@ -1055,7 +1433,10 @@ async function startScanner() {
 
 
 async function improveCamera() {
-  if (!track) return;
+  if (!track) {
+    return;
+  }
+
 
   try {
     const cap =
@@ -1063,57 +1444,77 @@ async function improveCamera() {
         ? track.getCapabilities()
         : {};
 
+
     const advanced = [];
 
+
     if (
-      cap.focusMode &&
-      cap.focusMode.includes('continuous')
+      cap.focusMode
+      &&
+      cap.focusMode.includes(
+        'continuous'
+      )
     ) {
       advanced.push({
-        focusMode: 'continuous'
+        focusMode:
+          'continuous'
       });
     }
 
+
     if (
-      cap.exposureMode &&
-      cap.exposureMode.includes('continuous')
+      cap.exposureMode
+      &&
+      cap.exposureMode.includes(
+        'continuous'
+      )
     ) {
       advanced.push({
-        exposureMode: 'continuous'
+        exposureMode:
+          'continuous'
       });
     }
 
-    if (advanced.length) {
+
+    if (
+      advanced.length
+    ) {
       await track.applyConstraints({
-        advanced: advanced
+        advanced:
+          advanced
       });
     }
 
-    /*
-     * Фонарик доступен не на всех браузерах/телефонах.
-     * Если камера сообщает поддержку torch — показываем кнопку.
-     */
+
     torchSupported =
-      cap.torch === true ||
+      cap.torch === true
+      ||
       (
-        Array.isArray(cap.torch) &&
+        Array.isArray(
+          cap.torch
+        )
+        &&
         cap.torch.length > 0
       );
 
-    const torchBtn =
-      document.getElementById('torchBtn');
 
-    if (torchSupported) {
-      torchBtn.classList.remove('hidden');
-    }
-    else {
-      torchBtn.classList.add('hidden');
+    if (
+      torchSupported
+    ) {
+      document
+        .getElementById(
+          'torchBtn'
+        )
+        .classList
+        .remove(
+          'hidden'
+        );
     }
   }
 
   catch(e) {
     console.log(
-      'camera constraints',
+      'camera',
       e
     );
   }
@@ -1122,39 +1523,50 @@ async function improveCamera() {
 
 async function toggleTorch() {
   if (
-    !track ||
+    !track
+    ||
     !torchSupported
   ) {
     setStatus(
-      '⚠️ На этом устройстве браузер не даёт доступ к фонарику.',
+      '⚠️ Фонарик недоступен на этом устройстве.',
       'warn'
     );
 
     return;
   }
 
+
   const next =
     !torchOn;
+
 
   try {
     await track.applyConstraints({
       advanced: [
         {
-          torch: next
+          torch:
+            next
         }
       ]
     });
 
+
     torchOn =
       next;
 
+
     const btn =
-      document.getElementById('torchBtn');
+      document
+        .getElementById(
+          'torchBtn'
+        );
+
 
     btn.textContent =
       torchOn
         ? '🔦 ВЫКЛЮЧИТЬ ФОНАРИК'
         : '🔦 ВКЛЮЧИТЬ ФОНАРИК';
+
 
     btn.classList.toggle(
       'torch-on',
@@ -1164,55 +1576,74 @@ async function toggleTorch() {
 
   catch(err) {
     setStatus(
-      '⚠️ Не удалось переключить фонарик на этом телефоне.',
+      '⚠️ Не удалось переключить фонарик.',
       'warn'
     );
   }
 }
 
 
-/* =====================================================
-   OCR FULL LABEL
-===================================================== */
+/* ============================================================
+   OCR
+============================================================ */
 
 async function initOcr() {
   try {
     setOcrBadge(
-      'OCR: загружаю…'
+      'OCR: загрузка…'
     );
 
-    /*
-     * Почти все автомобильные артикулы — латиница/цифры.
-     * Русский OCR загружаем только если в артикулах выбранной
-     * поставки реально есть кириллица.
-     */
+
     const needsRussian =
-      catalog.some(function(item) {
-        return (
-          (item.articleAliases || [])
-            .some(function(alias) {
-              return /[А-ЯЁ]/i.test(
-                String(alias || '')
-              );
-            })
-        );
-      });
+      catalog.some(
+        function(item) {
+          return /[А-ЯЁ]/i.test(
+            String(
+              item.articleKey || ''
+            )
+          );
+        }
+      );
+
 
     worker =
       await Tesseract
         .createWorker(
           needsRussian
-            ? ['eng', 'rus']
+            ? [
+                'eng',
+                'rus'
+              ]
             : 'eng'
         );
 
-    await setOcrMode(11);
 
-    ocrReady = true;
+    await worker.setParameters({
+      tessedit_char_whitelist:
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz' +
+        'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ' +
+        'абвгдеёжзийклмнопрстуфхцчшщъыьэюя' +
+        '0123456789-./_+ ',
+
+      preserve_interword_spaces:
+        '1',
+
+      tessedit_pageseg_mode:
+        '11',
+
+      user_defined_dpi:
+        '300'
+    });
+
+
+    ocrReady =
+      true;
+
 
     setOcrBadge(
       'OCR: готов'
     );
+
 
     ocrLoop();
   }
@@ -1222,8 +1653,9 @@ async function initOcr() {
       'OCR: ошибка'
     );
 
+
     setStatus(
-      '❌ Не удалось загрузить OCR:<br>' +
+      '❌ OCR не загрузился:<br>' +
       escapeHtml(
         err.message ||
         String(err)
@@ -1234,67 +1666,65 @@ async function initOcr() {
 }
 
 
-async function setOcrMode(psm) {
-  await worker.setParameters({
-    tessedit_char_whitelist:
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz' +
-      'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ' +
-      'абвгдеёжзийклмнопрстуфхцчшщъыьэюя' +
-      '0123456789-./_ ',
-    preserve_interword_spaces: '1',
-    tessedit_pageseg_mode: String(psm),
-    user_defined_dpi: '300'
-  });
-}
-
-
 async function ocrLoop() {
-  if (!ocrReady) return;
+  if (!ocrReady) {
+    return;
+  }
+
 
   if (
-    ocrBusy ||
-    serverBusy ||
+    ocrBusy
+    ||
+    serverBusy
+    ||
     !selectedBatchIds.length
   ) {
     setTimeout(
       ocrLoop,
-      180
+      80
     );
 
     return;
   }
 
-  ocrBusy = true;
+
+  ocrBusy =
+    true;
+
+
   pass++;
 
-  try {
 
+  try {
     /*
-     * Быстрый режим:
-     * один полноэкранный OCR-проход вместо трёх разных.
+     * Быстрый цикл:
+     * один OCR-проход на итерацию.
      * Чередуем мягкий и контрастный кадр.
      */
+    const threshold =
+      pass % 2 === 0;
+
+
     const canvas =
       captureLabel(
-        false,
-        0,
-        false
+        threshold
       );
 
-    const label =
-      'быстрый';
 
     if (canvas) {
       setOcrBadge(
-        'OCR: ' +
-        label
+        threshold
+          ? 'OCR: контраст'
+          : 'OCR: читаю'
       );
+
 
       const result =
         await worker
           .recognize(
             canvas
           );
+
 
       const text =
         result &&
@@ -1305,7 +1735,6 @@ async function ocrLoop() {
             )
           : '';
 
-      showSeen(text);
 
       const confidence =
         result &&
@@ -1315,7 +1744,13 @@ async function ocrLoop() {
             )
           : 0;
 
-      processLabelText(
+
+      showSeen(
+        text
+      );
+
+
+      processOcr(
         text,
         confidence
       );
@@ -1330,123 +1765,122 @@ async function ocrLoop() {
   }
 
   finally {
-    ocrBusy = false;
+    ocrBusy =
+      false;
 
-    if (ocrReady) {
+
+    if (
+      ocrReady
+    ) {
       setOcrBadge(
         'OCR: готов'
       );
     }
 
+
     setTimeout(
       ocrLoop,
-      15
+      30
     );
   }
 }
 
 
-/* =====================================================
-   CAPTURE / PREPROCESSING
-===================================================== */
-
 function getVideo() {
   const video =
     document
-      .getElementById('video');
+      .getElementById(
+        'video'
+      );
+
 
   if (
-    !video ||
-    !video.videoWidth ||
+    !video
+    ||
+    !video.videoWidth
+    ||
     !video.videoHeight
   ) {
     return null;
   }
+
 
   return video;
 }
 
 
 function captureLabel(
-  centerOnly,
-  rotation,
   thresholdMode
 ) {
   const video =
     getVideo();
 
+
   if (!video) {
     return null;
   }
 
-  let sx;
-  let sy;
-  let sw;
-  let sh;
 
-  if (centerOnly) {
-    sw =
-      Math.round(
-        video.videoWidth *
-        .88
-      );
+  const sw =
+    Math.round(
+      video.videoWidth *
+      .96
+    );
 
-    sh =
-      Math.round(
-        video.videoHeight *
-        .68
-      );
-  }
 
-  else {
-    sw =
-      Math.round(
-        video.videoWidth *
-        .96
-      );
+  const sh =
+    Math.round(
+      video.videoHeight *
+      .92
+    );
 
-    sh =
-      Math.round(
-        video.videoHeight *
-        .92
-      );
-  }
 
-  sx =
+  const sx =
     Math.round(
       (
         video.videoWidth -
         sw
-      ) / 2
+      ) /
+      2
     );
 
-  sy =
+
+  const sy =
     Math.round(
       (
         video.videoHeight -
         sh
-      ) / 2
+      ) /
+      2
     );
 
-  const maxW =
-    centerOnly
-      ? 720
-      : 860;
+
+  /*
+   * Маленький кадр = заметно быстрее OCR.
+   */
+  const targetWidth =
+    920;
+
 
   const scale =
     Math.min(
-      1.05,
-      maxW /
-      Math.max(sw, 1)
+      1,
+      targetWidth /
+      Math.max(
+        sw,
+        1
+      )
     );
 
-  const raw =
+
+  const canvas =
     document
       .createElement(
         'canvas'
       );
 
-  raw.width =
+
+  canvas.width =
     Math.max(
       1,
       Math.round(
@@ -1455,7 +1889,8 @@ function captureLabel(
       )
     );
 
-  raw.height =
+
+  canvas.height =
     Math.max(
       1,
       Math.round(
@@ -1464,13 +1899,16 @@ function captureLabel(
       )
     );
 
+
   const ctx =
-    raw.getContext(
+    canvas.getContext(
       '2d',
       {
-        willReadFrequently: true
+        willReadFrequently:
+          true
       }
     );
+
 
   ctx.drawImage(
     video,
@@ -1480,55 +1918,20 @@ function captureLabel(
     sh,
     0,
     0,
-    raw.width,
-    raw.height
+    canvas.width,
+    canvas.height
   );
+
 
   preprocess(
     ctx,
-    raw.width,
-    raw.height,
+    canvas.width,
+    canvas.height,
     thresholdMode
   );
 
-  if (!rotation) {
-    return raw;
-  }
 
-  const rotated =
-    document
-      .createElement(
-        'canvas'
-      );
-
-  rotated.width =
-    raw.height;
-
-  rotated.height =
-    raw.width;
-
-  const rctx =
-    rotated
-      .getContext('2d');
-
-  rctx.translate(
-    rotated.width / 2,
-    rotated.height / 2
-  );
-
-  rctx.rotate(
-    rotation *
-    Math.PI /
-    180
-  );
-
-  rctx.drawImage(
-    raw,
-    -raw.width / 2,
-    -raw.height / 2
-  );
-
-  return rotated;
+  return canvas;
 }
 
 
@@ -1547,15 +1950,21 @@ function preprocess(
         height
       );
 
+
     const d =
       image.data;
+
 
     let mean =
       128;
 
-    if (thresholdMode) {
+
+    if (
+      thresholdMode
+    ) {
       let sum = 0;
       let count = 0;
+
 
       for (
         let i = 0;
@@ -1563,19 +1972,25 @@ function preprocess(
         i += 32
       ) {
         const g =
-          d[i] * .299 +
-          d[i + 1] * .587 +
+          d[i] * .299
+          +
+          d[i + 1] * .587
+          +
           d[i + 2] * .114;
+
 
         sum += g;
         count++;
       }
 
+
       if (count) {
         mean =
-          sum / count;
+          sum /
+          count;
       }
     }
+
 
     for (
       let i = 0;
@@ -1583,13 +1998,19 @@ function preprocess(
       i += 4
     ) {
       const gray =
-        d[i] * .299 +
-        d[i + 1] * .587 +
+        d[i] * .299
+        +
+        d[i + 1] * .587
+        +
         d[i + 2] * .114;
+
 
       let value;
 
-      if (thresholdMode) {
+
+      if (
+        thresholdMode
+      ) {
         const t =
           Math.max(
             85,
@@ -1599,6 +2020,7 @@ function preprocess(
               .92
             )
           );
+
 
         value =
           gray >= t
@@ -1612,8 +2034,10 @@ function preprocess(
             gray -
             128
           ) *
-          1.22 +
+          1.20
+          +
           128;
+
 
         value =
           Math.max(
@@ -1625,10 +2049,17 @@ function preprocess(
           );
       }
 
-      d[i] = value;
-      d[i + 1] = value;
-      d[i + 2] = value;
+
+      d[i] =
+        value;
+
+      d[i + 1] =
+        value;
+
+      d[i + 2] =
+        value;
     }
+
 
     ctx.putImageData(
       image,
@@ -1641,14 +2072,62 @@ function preprocess(
 }
 
 
-/* =====================================================
-   MATCHING
-===================================================== */
+/* ============================================================
+   OCR MATCHING — ARTICLE FIRST
+============================================================ */
+
+let articleOwners = {};
+
+
+function prepareCatalog() {
+  articleOwners = {};
+
+
+  catalog.forEach(
+    function(item) {
+      const key =
+        normalize(
+          item.articleKey
+        );
+
+
+      if (!key) {
+        return;
+      }
+
+
+      if (
+        !articleOwners[
+          key
+        ]
+      ) {
+        articleOwners[
+          key
+        ] =
+          new Set();
+      }
+
+
+      articleOwners[
+        key
+      ]
+      .add(
+        item.brandKey
+      );
+    }
+  );
+}
+
 
 function normalize(value) {
-  return String(value || '')
+  return String(
+    value || ''
+  )
     .toUpperCase()
-    .replace(/Ё/g, 'Е')
+    .replace(
+      /Ё/g,
+      'Е'
+    )
     .replace(
       /[^A-ZА-Я0-9]/g,
       ''
@@ -1658,404 +2137,148 @@ function normalize(value) {
 
 function tokens(value) {
   return (
-    String(value || '')
-      .toUpperCase()
-      .replace(/Ё/g, 'Е')
-      .match(/[A-ZА-Я0-9]+/g)
+    String(
+      value || ''
+    )
+    .toUpperCase()
+    .replace(
+      /Ё/g,
+      'Е'
+    )
+    .match(
+      /[A-ZА-Я0-9]+/g
+    )
     ||
     []
   );
 }
 
 
-function hasDigit(value) {
-  return /\d/.test(
-    String(value || '')
-  );
-}
-
-
-function canonicalMixed(value) {
-  return normalize(value)
-    .replace(/[OОQ]/g, '0')
-    .replace(/[IІL]/g, '1')
-    .replace(/Z/g, '2')
-    .replace(/S/g, '5')
-    .replace(/B/g, '8')
-    .replace(/G/g, '6');
+function canonical(value) {
+  return normalize(
+    value
+  )
+    .replace(
+      /[OОQ]/g,
+      '0'
+    )
+    .replace(
+      /[IІL]/g,
+      '1'
+    )
+    .replace(
+      /Z/g,
+      '2'
+    )
+    .replace(
+      /S/g,
+      '5'
+    )
+    .replace(
+      /B/g,
+      '8'
+    )
+    .replace(
+      /G/g,
+      '6'
+    );
 }
 
 
 function makeCandidates(text) {
-  const rawLines =
-    String(text || '')
-      .toUpperCase()
-      .replace(/Ё/g, 'Е')
-      .split(/\n+/)
-      .map(function(x) {
+  const lines =
+    String(
+      text || ''
+    )
+    .toUpperCase()
+    .replace(
+      /Ё/g,
+      'Е'
+    )
+    .split(
+      /\n+/
+    )
+    .map(
+      function(x) {
         return x.trim();
-      })
-      .filter(Boolean);
+      }
+    )
+    .filter(
+      Boolean
+    );
+
 
   const set =
     new Set();
-
-  function add(v) {
-    const n =
-      normalize(v);
-
-    if (
-      n.length >= 2 &&
-      n.length <= 60
-    ) {
-      set.add(n);
-    }
-  }
-
-  rawLines.forEach(function(line) {
-    add(line);
-
-    const parts =
-      tokens(line);
-
-    parts.forEach(add);
-
-    for (
-      let i = 0;
-      i < parts.length;
-      i++
-    ) {
-      for (
-        let count = 2;
-        count <= 7;
-        count++
-      ) {
-        if (
-          i + count >
-          parts.length
-        ) {
-          break;
-        }
-
-        add(
-          parts
-            .slice(
-              i,
-              i + count
-            )
-            .join('')
-        );
-      }
-    }
-  });
-
-  const all =
-    tokens(text);
-
-  for (
-    let i = 0;
-    i < all.length;
-    i++
-  ) {
-    for (
-      let count = 2;
-      count <= 5;
-      count++
-    ) {
-      if (
-        i + count >
-        all.length
-      ) {
-        break;
-      }
-
-      add(
-        all
-          .slice(
-            i,
-            i + count
-          )
-          .join('')
-      );
-    }
-  }
-
-  return [
-    ...set
-  ];
-}
-
-
-/*
- * Строгие артикулы, извлечённые из наименования товара.
- *
- * ВАЖНО:
- * автоматическое принятие теперь возможно ТОЛЬКО
- * при совпадении с артикулом.
- *
- * Название, бренд, слова "колодки", "фильтр" и т.п.
- * сами по себе товар НЕ принимают.
- */
-let articleOwnerMap = {};
-
-
-function prepareArticleCatalog() {
-  articleOwnerMap = {};
-
-  catalog.forEach(function(item) {
-    item.articleAliases =
-      extractArticleAliases(
-        item.name
-      );
-
-    item.articleAliases
-      .forEach(function(alias) {
-        const a =
-          normalize(alias);
-
-        if (!a) return;
-
-        if (!articleOwnerMap[a]) {
-          articleOwnerMap[a] =
-            new Set();
-        }
-
-        articleOwnerMap[a]
-          .add(
-            item.productKey
-          );
-      });
-  });
-}
-
-
-function cleanSourceToken(value) {
-  return String(value || '')
-    .replace(/^[\(\[\{]+/, '')
-    .replace(/[\)\]\},;:]+$/, '');
-}
-
-
-function isAllCapsCodeToken(raw) {
-  const t =
-    cleanSourceToken(raw);
-
-  /*
-   * Чисто буквенный артикул допускаем,
-   * если в таблице он действительно написан
-   * как код заглавными буквами.
-   */
-  return (
-    /^[A-ZА-ЯЁ]{2,16}$/.test(t) &&
-    t === t.toUpperCase()
-  );
-}
-
-
-function isCodeToken(raw) {
-  const t =
-    cleanSourceToken(raw);
-
-  if (!t) return false;
-
-  return (
-    /\d/.test(t) ||
-    /[-\/_.+]/.test(t)
-  );
-}
-
-
-function isCodeContinuation(raw) {
-  const t =
-    cleanSourceToken(raw);
-
-  if (!t) return false;
-
-  if (
-    /\d/.test(t) ||
-    /[-\/_.+]/.test(t)
-  ) {
-    return true;
-  }
-
-  /*
-   * Суффиксы вроде KIT / SA / WK / L / R,
-   * если они отделены пробелом.
-   */
-  return (
-    /^[A-Z]{1,6}$/.test(t) &&
-    t === t.toUpperCase()
-  );
-}
-
-
-function extractArticleAliases(name) {
-  const source =
-    String(name || '')
-      .trim();
-
-  const set =
-    new Set();
-
-  const stopPure =
-    new Set([
-      'GROUP',
-      'AUTO',
-      'PART',
-      'PARTS',
-      'SET',
-      'CLEAN',
-      'NEW',
-      'ORIGINAL',
-      'LEFT',
-      'RIGHT'
-    ]);
 
 
   function add(value) {
     const n =
-      normalize(value);
+      normalize(
+        value
+      );
+
 
     if (
-      n.length >= 2 &&
-      n.length <= 40
+      n.length >= 2
+      &&
+      n.length <= 50
     ) {
-      set.add(n);
-    }
-  }
-
-
-  /*
-   * 1. Явно записанный артикул:
-   * "старый арт. CKT-11"
-   * "старый арт CRN-74"
-   */
-  const explicit =
-    source.match(
-      /(?:стар(?:ый|ого)?\s+)?арт\.?\s*[:№#-]?\s*([A-Za-zА-ЯЁ0-9][A-Za-zА-ЯЁ0-9\-./_+]*)/i
-    );
-
-  if (explicit) {
-    add(
-      explicit[1]
-    );
-  }
-
-
-  const rawTokens =
-    source
-      .split(/\s+/)
-      .map(cleanSourceToken)
-      .filter(Boolean);
-
-
-  /*
-   * 2. Стандартная строка:
-   *
-   * WINKOD W338738SA
-   * MEYLE 314 800 9005
-   * JP GROUP 1113600200
-   * 555 SB-6192
-   *
-   * Код должен находиться в правой части наименования.
-   * Если после него идёт обычное описание товара,
-   * такой фрагмент не считаем артикулом.
-   */
-  let codeStart =
-    -1;
-
-  for (
-    let i = 1;
-    i < rawTokens.length;
-    i++
-  ) {
-    if (
-      isCodeToken(
-        rawTokens[i]
-      )
-    ) {
-      codeStart =
-        i;
-
-      break;
-    }
-  }
-
-  if (
-    codeStart >= 1 &&
-    codeStart <= 2
-  ) {
-    let codeEnd =
-      codeStart;
-
-    while (
-      codeEnd + 1 <
-        rawTokens.length &&
-      isCodeContinuation(
-        rawTokens[
-          codeEnd + 1
-        ]
-      )
-    ) {
-      codeEnd++;
-    }
-
-    /*
-     * Артикул должен занимать хвост строки.
-     * Это специально отсекает:
-     * "OSRAM 12V (4W) Лампа стандарт..."
-     * и другие характеристики внутри описаний.
-     */
-    if (
-      codeEnd ===
-      rawTokens.length - 1
-    ) {
-      const combined =
-        rawTokens
-          .slice(
-            codeStart,
-            codeEnd + 1
-          )
-          .join('');
-
-      add(
-        combined
+      set.add(
+        n
       );
     }
   }
 
 
-  /*
-   * 3. Чисто буквенный артикул:
-   * BRAND ABC
-   *
-   * Берём только последнюю часть короткого
-   * наименования и только если она выглядит
-   * именно как код заглавными буквами.
-   */
-  if (
-    rawTokens.length >= 2 &&
-    rawTokens.length <= 3
-  ) {
-    const last =
-      rawTokens[
-        rawTokens.length - 1
-      ];
-
-    const normalizedLast =
-      normalize(last);
-
-    if (
-      isAllCapsCodeToken(last) &&
-      !stopPure.has(
-        normalizedLast
-      )
-    ) {
+  lines.forEach(
+    function(line) {
       add(
-        last
+        line
       );
+
+
+      const parts =
+        tokens(
+          line
+        );
+
+
+      parts.forEach(
+        add
+      );
+
+
+      for (
+        let i = 0;
+        i < parts.length;
+        i++
+      ) {
+        for (
+          let count = 2;
+          count <= 4;
+          count++
+        ) {
+          if (
+            i + count >
+            parts.length
+          ) {
+            break;
+          }
+
+
+          add(
+            parts
+              .slice(
+                i,
+                i + count
+              )
+              .join('')
+          );
+        }
+      }
     }
-  }
+  );
 
 
   return [
@@ -2064,345 +2287,292 @@ function extractArticleAliases(name) {
 }
 
 
-function brandPresent(
+function brandSeen(
   item,
   text
 ) {
-  const nameParts =
-    tokens(
-      item.name
+  const parts =
+    new Set(
+      tokens(
+        text
+      )
+      .map(
+        normalize
+      )
     );
 
-  if (!nameParts.length) {
+
+  const brand =
+    normalize(
+      item.brandKey
+    );
+
+
+  if (
+    brand.length < 3
+  ) {
     return false;
   }
 
-  const ocrParts =
-    new Set(
-      tokens(text)
-        .map(normalize)
-    );
 
   /*
-   * Первый токен — основной бренд.
-   * Для JP GROUP / JS ASAKASHI достаточно
-   * присутствия любого из первых двух слов.
+   * Для многословного бренда достаточно,
+   * что его нормализованное значение встречается
+   * в полном OCR-тексте.
    */
-  const first =
+  const full =
     normalize(
-      nameParts[0]
+      text
     );
 
-  const second =
-    nameParts.length > 1
-      ? normalize(
-          nameParts[1]
-        )
-      : '';
 
-  if (
-    first.length >= 3 &&
-    ocrParts.has(first)
-  ) {
-    return true;
-  }
-
-  if (
-    second.length >= 4 &&
-    /^[A-ZА-Я0-9]+$/.test(
-      second
-    ) &&
-    ocrParts.has(second)
-  ) {
-    return true;
-  }
-
-  return false;
+  return (
+    parts.has(
+      brand
+    )
+    ||
+    full.includes(
+      brand
+    )
+  );
 }
 
 
-function scoreArticleAlias(
-  aliasRaw,
-  candidateRaw
+function scoreArticle(
+  articleKey,
+  candidate
 ) {
-  const alias =
-    normalize(
-      aliasRaw
-    );
-
-  const candidate =
-    normalize(
-      candidateRaw
-    );
-
-  if (
-    !alias ||
-    !candidate
-  ) {
-    return 0;
-  }
-
-
-  /*
-   * Точное совпадение — главный вариант.
-   */
-  if (
-    candidate ===
-    alias
-  ) {
-    return 1;
-  }
-
-
-  /*
-   * OCR может приклеить к артикулу служебное слово:
-   * PARTNOCKT11
-   */
-  if (
-    alias.length >= 5 &&
-    candidate.includes(
-      alias
-    )
-  ) {
-    const excess =
-      candidate.length -
-      alias.length;
-
-    if (
-      excess >= 0 &&
-      excess <= 12
-    ) {
-      return .985;
-    }
-  }
-
-
-  const mixed =
-    hasDigit(alias) ||
-    hasDigit(candidate);
-
   const a =
-    mixed
-      ? canonicalMixed(
-          alias
-        )
-      : alias;
-
-  const b =
-    mixed
-      ? canonicalMixed(
-          candidate
-        )
-      : candidate;
+    normalize(
+      articleKey
+    );
 
 
-  /*
-   * Типичные ошибки OCR:
-   * O/0, I/1, S/5, B/8...
-   */
+  const c =
+    normalize(
+      candidate
+    );
+
+
   if (
-    a === b
+    !a
+    ||
+    !c
   ) {
-    return .99;
+    return {
+      score: 0,
+      exact: false
+    };
+  }
+
+
+  if (
+    a === c
+  ) {
+    return {
+      score: 1,
+      exact: true
+    };
   }
 
 
   /*
-   * Короткие цифровые артикулы не угадываем.
-   * Для них нужно точное чтение.
+   * OCR может приклеить PARTNO / ARTICLE и т.п.
    */
   if (
-    /^\d+$/.test(
-      alias
-    ) &&
-    alias.length <= 5
+    a.length >= 5
+    &&
+    c.includes(
+      a
+    )
+    &&
+    c.length -
+      a.length
+    <= 12
   ) {
-    return 0;
+    return {
+      score: .985,
+      exact: true
+    };
   }
 
 
   /*
-   * Нечёткое сравнение допускается только
-   * для достаточно длинного артикула.
+   * O/0, I/1, S/5 и т.п.
+   * Только для кодов, где есть цифра.
    */
   if (
-    alias.length >= 6 &&
-    candidate.length >= 6 &&
+    /\d/.test(a)
+    &&
+    canonical(a)
+    ===
+    canonical(c)
+  ) {
+    return {
+      score: .99,
+      exact: true
+    };
+  }
+
+
+  /*
+   * Нечёткий вариант — только длинные коды.
+   */
+  if (
+    a.length >= 6
+    &&
+    c.length >= 6
+    &&
     Math.abs(
       a.length -
-      b.length
+      c.length
     ) <= 2
   ) {
+    const aa =
+      /\d/.test(a)
+        ? canonical(a)
+        : a;
+
+
+    const cc =
+      /\d/.test(c)
+        ? canonical(c)
+        : c;
+
+
     const dist =
       levenshtein(
-        a,
-        b
+        aa,
+        cc
       );
+
 
     const maxEdits =
       Math.max(
-        a.length,
-        b.length
+        aa.length,
+        cc.length
       ) >= 10
         ? 2
         : 1;
+
 
     if (
       dist <=
       maxEdits
     ) {
-      const similarity =
-        1 -
-        dist /
-        Math.max(
-          a.length,
-          b.length
-        );
+      return {
+        score:
+          (
+            1 -
+            dist /
+            Math.max(
+              aa.length,
+              cc.length
+            )
+          )
+          *
+          .96,
 
-      return (
-        similarity *
-        .97
-      );
+        exact:
+          false
+      };
     }
   }
 
 
-  return 0;
+  return {
+    score: 0,
+    exact: false
+  };
 }
 
 
-function findBestProduct(text) {
+function findBest(text) {
   const candidates =
     makeCandidates(
       text
     );
 
+
   if (
-    !candidates.length ||
+    !candidates.length
+    ||
     !catalog.length
   ) {
     return null;
   }
+
 
   const results = [];
 
 
   catalog.forEach(
     function(item) {
+      const article =
+        normalize(
+          item.articleKey
+        );
 
-      const aliases =
-        item.articleAliases ||
-        [];
+
+      if (!article) {
+        return;
+      }
+
+
+      const owners =
+        articleOwners[
+          article
+        ];
 
 
       /*
-       * У позиции нет артикула, который можно
-       * надёжно извлечь из таблицы.
-       *
-       * По одному описанию такую строку
-       * автоматически НЕ принимаем.
+       * Если один и тот же артикул есть у разных брендов,
+       * без бренда с этикетки не выбираем наугад.
        */
+      const duplicateAcrossBrands =
+        owners
+        &&
+        owners.size > 1;
+
+
+      const hasBrand =
+        brandSeen(
+          item,
+          text
+        );
+
+
       if (
-        !aliases.length
+        duplicateAcrossBrands
+        &&
+        !hasBrand
       ) {
         return;
       }
 
 
-      let bestScore =
-        0;
-
-      let matchedArticle =
-        '';
-
-      let matchedExact =
-        false;
+      let bestScore = 0;
+      let bestExact = false;
 
 
-      aliases.forEach(
-        function(alias) {
-
-          const aliasNorm =
-            normalize(
-              alias
+      candidates.forEach(
+        function(candidate) {
+          const s =
+            scoreArticle(
+              article,
+              candidate
             );
 
 
-          /*
-           * Если один и тот же артикул принадлежит
-           * нескольким разным позициям выбранной поставки,
-           * автоматически по нему не выбираем одну из них.
-           */
-          const owners =
-            articleOwnerMap[
-              aliasNorm
-            ];
-
-
           if (
-            owners &&
-            owners.size > 1
+            s.score >
+            bestScore
           ) {
-            return;
-          }
+            bestScore =
+              s.score;
 
-
-          for (
-            const candidate
-            of candidates
-          ) {
-            const score =
-              scoreArticleAlias(
-                aliasNorm,
-                candidate
-              );
-
-            const candidateNorm =
-              normalize(
-                candidate
-              );
-
-            const exactNow =
-              (
-                candidateNorm ===
-                aliasNorm
-              )
-              ||
-              (
-                (
-                  hasDigit(aliasNorm) ||
-                  hasDigit(candidateNorm)
-                )
-                &&
-                canonicalMixed(
-                  candidateNorm
-                )
-                ===
-                canonicalMixed(
-                  aliasNorm
-                )
-              );
-
-
-            if (
-              score >
-              bestScore
-              ||
-              (
-                score === bestScore &&
-                exactNow &&
-                !matchedExact
-              )
-            ) {
-              bestScore =
-                score;
-
-              matchedArticle =
-                aliasNorm;
-
-              matchedExact =
-                exactNow;
-            }
+            bestExact =
+              s.exact;
           }
         }
       );
@@ -2415,143 +2585,54 @@ function findBestProduct(text) {
       }
 
 
-      const brand =
-        brandPresent(
-          item,
-          text
-        );
-
-
-      /*
-       * Бренд — только подтверждение.
-       * Без совпадения артикула бренд ничего не даёт.
-       */
-      let finalScore =
+      const finalScore =
         Math.min(
           1,
           bestScore +
           (
-            brand
-              ? .005
+            hasBrand
+              ? .003
               : 0
           )
         );
 
 
-      const pureNumeric =
-        /^\d+$/.test(
-          matchedArticle
-        );
-
-
-      const pureLetters =
-        /^[A-ZА-Я]+$/.test(
-          matchedArticle
-        );
-
-
       results.push({
-        productKey:
-          item.productKey,
+        articleKey:
+          item.articleKey,
+
+        article:
+          item.article,
+
+        brandKey:
+          item.brandKey,
+
+        brand:
+          item.brand,
 
         name:
           item.name,
 
-        expected:
-          Number(
-            item.expected || 0
-          ),
-
-        accepted:
-          Number(
-            item.accepted || 0
-          ),
-
-        article:
-          matchedArticle,
-
         score:
           finalScore,
 
-        /*
-         * Короткие цифровые/буквенные коды
-         * сразу не принимаем без бренда:
-         * подтверждаем вторым кадром.
-         */
-        /*
-         * Совпадение всё ещё строго по артикулу.
-         * Но точное/каноническое совпадение больше
-         * не ждёт второй OCR-кадр — принимаем сразу.
-         */
-        /*
-         * Сразу принимаем только реально прочитанный артикул.
-         * Совпадение по "похожести" больше никогда не считается
-         * достаточным для мгновенного принятия.
-         *
-         * Короткий чисто цифровой/буквенный код требует бренда
-         * и второго кадра — на этикетке много посторонних чисел/слов.
-         */
-        strong:
-          matchedExact &&
-          finalScore >= .99 &&
-          matchedArticle.length >= 4 &&
-          (
-            (
-              /[A-ZА-Я]/.test(
-                matchedArticle
-              )
-              &&
-              /\d/.test(
-                matchedArticle
-              )
-            )
-            ||
-            (
-              /^\d+$/.test(
-                matchedArticle
-              )
-              &&
-              matchedArticle.length >= 6
-            )
-            ||
-            (
-              /^[A-ZА-Я]+$/.test(
-                matchedArticle
-              )
-              &&
-              matchedArticle.length >= 6
-              &&
-              brand
-            )
-          )
+        exact:
+          bestExact
       });
     }
   );
 
 
-  if (
-    !results.length
-  ) {
+  if (!results.length) {
     return null;
   }
 
 
   results.sort(
     function(a, b) {
-
-      if (
-        b.score !==
-        a.score
-      ) {
-        return (
-          b.score -
-          a.score
-        );
-      }
-
       return (
-        b.article.length -
-        a.article.length
+        b.score -
+        a.score
       );
     }
   );
@@ -2560,15 +2641,11 @@ function findBestProduct(text) {
   const best =
     results[0];
 
+
   const second =
     results[1];
 
 
-  /*
-   * Теперь порог высокий:
-   * название товара больше не может
-   * протолкнуть слабое совпадение.
-   */
   if (
     best.score < .90
   ) {
@@ -2576,14 +2653,12 @@ function findBestProduct(text) {
   }
 
 
-  /*
-   * Два похожих артикула:
-   * не выбираем наугад.
-   */
   if (
-    second &&
-    second.productKey !==
-      best.productKey &&
+    second
+    &&
+    second.articleKey !==
+      best.articleKey
+    &&
     best.score -
       second.score
     < .04
@@ -2596,375 +2671,446 @@ function findBestProduct(text) {
 }
 
 
-/* =====================================================
-   ОПРЕДЕЛЕНИЕ СМЕНЫ ФИЗИЧЕСКОГО ТОВАРА
+/* ============================================================
+   PROCESS OCR
+============================================================ */
 
-   После успешного скана запоминаем очень маленький
-   "отпечаток" кадра. Если коробку убрали/заменили,
-   изображение заметно меняется и тот же артикул
-   можно принимать снова без долгого ожидания.
-===================================================== */
+function resetScanState() {
+  blockedArticleKey = '';
+  blockedClearFrames = 0;
 
-function captureFingerprint() {
-  const video =
-    getVideo();
+  candidateKey = '';
+  candidateHits = 0;
+  candidateAt = 0;
 
-  if (!video) {
-    return null;
-  }
-
-  const canvas =
-    document.createElement('canvas');
-
-  canvas.width = 24;
-  canvas.height = 18;
-
-  const ctx =
-    canvas.getContext(
-      '2d',
-      {
-        willReadFrequently: true
-      }
-    );
-
-  ctx.drawImage(
-    video,
-    0,
-    0,
-    video.videoWidth,
-    video.videoHeight,
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
-
-  try {
-    const data =
-      ctx.getImageData(
-        0,
-        0,
-        canvas.width,
-        canvas.height
-      ).data;
-
-    const arr = [];
-
-    for (
-      let i = 0;
-      i < data.length;
-      i += 4
-    ) {
-      arr.push(
-        Math.round(
-          data[i] * .299 +
-          data[i + 1] * .587 +
-          data[i + 2] * .114
-        )
-      );
-    }
-
-    return arr;
-  }
-
-  catch(e) {
-    return null;
-  }
+  notFoundHits = 0;
 }
 
 
-function fingerprintDifference(a, b) {
+function meaningfulText(
+  text,
+  confidence
+) {
   if (
-    !a ||
-    !b ||
-    a.length !== b.length
+    Number(
+      confidence || 0
+    ) < 35
   ) {
-    return 0;
-  }
-
-  let sum = 0;
-
-  for (
-    let i = 0;
-    i < a.length;
-    i++
-  ) {
-    sum +=
-      Math.abs(
-        a[i] -
-        b[i]
-      );
-  }
-
-  return (
-    sum /
-    a.length /
-    255
-  );
-}
-
-
-/* =====================================================
-   SCAN STATE
-===================================================== */
-
-function hasMeaningfulLabelText(text) {
-  const parts =
-    tokens(text)
-      .map(normalize)
-      .filter(function(x) {
-        return x.length >= 3;
-      });
-
-  if (!parts.length) {
     return false;
   }
 
-  /*
-   * Считаем кадр осмысленным, если OCR реально увидел
-   * хотя бы кодоподобный фрагмент или несколько слов.
-   */
+
+  const parts =
+    tokens(
+      text
+    );
+
+
   return (
-    parts.some(function(x) {
-      return (
-        x.length >= 4 &&
-        (
-          /\d/.test(x) ||
-          /^[A-ZА-Я]{4,}$/.test(x)
-        )
-      );
-    })
-    ||
-    parts.length >= 3
+    parts.some(
+      function(x) {
+        return (
+          normalize(
+            x
+          ).length >= 4
+        );
+      }
+    )
   );
 }
 
 
-function processLabelText(text, confidence) {
+function processOcr(
+  text,
+  confidence
+) {
   const best =
-    findBestProduct(text);
+    findBest(
+      text
+    );
 
-  if (blockedKey) {
-    const currentFingerprint =
-      captureFingerprint();
 
-    const moved =
-      blockedFingerprint &&
-      currentFingerprint
-        ? (
-            fingerprintDifference(
-              blockedFingerprint,
-              currentFingerprint
-            ) >= .11
-          )
-        : false;
-
-    /*
-     * Если коробку/этикетку физически поменяли,
-     * сразу разрешаем следующий скан — даже если
-     * у следующей коробки тот же самый артикул.
-     */
-    if (moved) {
-      blockedKey = '';
-      blockedMisses = 0;
-      blockedFingerprint = null;
-    }
-
-    else if (
-      best &&
-      best.productKey !==
-        blockedKey
+  /*
+   * После успешного скана одной коробки
+   * ждём, пока она реально исчезнет из OCR.
+   */
+  if (
+    blockedArticleKey
+  ) {
+    if (
+      best
+      &&
+      normalize(
+        best.articleKey
+      )
+      ===
+      normalize(
+        blockedArticleKey
+      )
     ) {
-      blockedKey = '';
-      blockedMisses = 0;
-      blockedFingerprint = null;
-    }
+      blockedClearFrames =
+        0;
 
-    else if (
-      best &&
-      best.productKey ===
-        blockedKey
-    ) {
-      blockedMisses = 0;
 
       setStatus(
-        '⏳ <b>Жду смену товара</b><br><br>' +
-        'Убери текущую этикетку из кадра и покажи следующую.',
-        'search'
+        '✅ 1 штука уже учтена.<br><br>' +
+        '<b>Покажи следующий товар.</b>',
+        'ok'
       );
+
 
       return;
     }
 
-    else {
-      blockedMisses++;
 
-      /*
-       * Если OCR уже два прохода не видит предыдущий товар,
-       * считаем, что его убрали. Не держим блокировку 1.8 сек.
-       */
-      if (blockedMisses < 2) {
-        return;
-      }
+    blockedClearFrames++;
 
-      blockedKey = '';
-      blockedMisses = 0;
-      blockedFingerprint = null;
-    }
-  }
-
-  if (!best) {
-    candidateKey = '';
-    candidateHits = 0;
 
     if (
-      hasMeaningfulLabelText(text) &&
-      Number(confidence || 0) >= 35
+      blockedClearFrames <
+      2
+    ) {
+      return;
+    }
+
+
+    blockedArticleKey =
+      '';
+
+
+    blockedClearFrames =
+      0;
+  }
+
+
+  if (!best) {
+    candidateKey =
+      '';
+
+    candidateHits =
+      0;
+
+
+    if (
+      meaningfulText(
+        text,
+        confidence
+      )
     ) {
       notFoundHits++;
     }
+
     else {
-      notFoundHits = 0;
+      notFoundHits =
+        0;
     }
 
-    /*
-     * Не показываем ошибку после одного случайно плохого кадра.
-     * Два осмысленных OCR-прохода без совпадения означают,
-     * что в выбранных датах такого артикула, скорее всего, нет.
-     */
-    if (notFoundHits >= 2) {
+
+    if (
+      notFoundHits >=
+      2
+    ) {
       setStatus(
-        '❌ <b>Данного товара нет в этом списке</b><br><br>' +
-        '<span style="font-size:12px">' +
-        'Если этикетка размыта, подержи её ровно ещё секунду — сканер продолжает искать.' +
-        '</span>',
+        '❌ <b>Данного товара нет в этом списке</b>',
         'bad'
       );
     }
 
-    return;
-  }
-
-  notFoundHits = 0;
-
-  if (best.strong) {
-    acceptProduct(best);
 
     return;
   }
+
+
+  notFoundHits =
+    0;
+
+
+  /*
+   * Точное распознавание артикула —
+   * принимаем сразу, без второго кадра.
+   */
+  if (
+    best.exact
+    &&
+    best.score >= .985
+  ) {
+    acceptItem(
+      best
+    );
+
+    return;
+  }
+
+
+  /*
+   * Нечёткое распознавание —
+   * только два одинаковых результата подряд.
+   */
+  const key =
+    normalize(
+      best.brandKey
+    )
+    +
+    '|'
+    +
+    normalize(
+      best.articleKey
+    );
+
 
   const now =
     Date.now();
 
+
   if (
     candidateKey ===
-      best.productKey &&
+      key
+    &&
     now -
       candidateAt
-    < 2200
+    < 2500
   ) {
     candidateHits++;
   }
 
   else {
     candidateKey =
-      best.productKey;
+      key;
 
     candidateHits =
       1;
   }
 
+
   candidateAt =
     now;
 
+
   setStatus(
-    '🔎 Артикул найден: <b>' +
+    '🔎 Артикул похож на <b>' +
     escapeHtml(
       best.article
     ) +
-    '</b><br>' +
-    '<span class="product">' +
-    escapeHtml(
-      best.name
-    ) +
-    '</span><br><br>' +
-    'Артикул прочитан не идеально — перепроверяю ещё одним кадром…',
+    '</b>. Быстро перепроверяю…',
     'search'
   );
 
+
   if (
-    candidateHits >= 2
+    candidateHits >=
+    2
   ) {
-    acceptProduct(
+    acceptItem(
       best
     );
   }
 }
 
 
-/*
- * ВАЖНО:
- * frontend больше НИКОГДА не решает сам,
- * что товар "уже принят", по локальному accepted.
- *
- * На каждый физический скан мы спрашиваем сервер.
- * Если первая выбранная дата уже закрыта — сервер ответит extra,
- * и мы автоматически пробуем следующую дату.
- *
- * Сообщение "всё уже принято" появляется только если СЕРВЕР
- * подтвердил extra по ВСЕМ выбранным датам этого артикула.
- */
-function recalcMergedItem(item) {
+/* ============================================================
+   ACCEPT
+============================================================ */
+
+async function acceptItem(item) {
   if (
-    !item ||
-    !Array.isArray(item.routes)
-  ) {
-    return;
-  }
-
-  item.expected =
-    item.routes
-      .reduce(function(sum, route) {
-        return (
-          sum +
-          Number(route.expected || 0)
-        );
-      }, 0);
-
-  item.accepted =
-    item.routes
-      .reduce(function(sum, route) {
-        return (
-          sum +
-          Number(route.accepted || 0)
-        );
-      }, 0);
-}
-
-
-async function acceptProduct(item) {
-  if (
-    serverBusy ||
+    serverBusy
+    ||
     !selectedBatchIds.length
   ) {
     return;
   }
 
-  serverBusy = true;
 
-  candidateKey = '';
-  candidateHits = 0;
-  notFoundHits = 0;
+  serverBusy =
+    true;
+
+
+  candidateKey =
+    '';
+
+  candidateHits =
+    0;
+
+  notFoundHits =
+    0;
+
+
+  setStatus(
+    '✅ Артикул найден: <b>' +
+    escapeHtml(
+      item.article
+    ) +
+    '</b><br>' +
+    escapeHtml(
+      item.name
+    ) +
+    '<br><br>' +
+    'Проверяю реальную ячейку E…',
+    'search'
+  );
+
 
   try {
-    await tryAcceptOnServer(
-      item,
-      0
+    const response =
+      await api(
+        'accept',
+        {
+          batchIds:
+            selectedBatchIds
+              .join('~'),
+
+          articleKey:
+            item.articleKey,
+
+          brandKey:
+            item.brandKey
+        }
+      );
+
+
+    const res =
+      response.result;
+
+
+    if (!res) {
+      throw new Error(
+        'Пустой ответ сервера'
+      );
+    }
+
+
+    if (
+      res.summary
+    ) {
+      updateSummary(
+        res.summary
+      );
+    }
+
+
+    if (
+      res.type ===
+      'accepted'
+    ) {
+      serverBusy =
+        false;
+
+
+      blockedArticleKey =
+        item.articleKey;
+
+
+      blockedClearFrames =
+        0;
+
+
+      const complete =
+        res.rowComplete;
+
+
+      setStatus(
+        (
+          complete
+            ? '✅ '
+            : '🟡 '
+        ) +
+        '<b>' +
+        escapeHtml(
+          res.name
+        ) +
+        '</b><br><br>' +
+        'Артикул: <b>' +
+        escapeHtml(
+          res.article
+        ) +
+        '</b><br>' +
+        'Поставка: <b>' +
+        escapeHtml(
+          res.batch
+        ) +
+        '</b><br>' +
+        'Эта строка: <b>' +
+        res.rowAccepted +
+        '</b> из ' +
+        res.rowQty +
+        '<br>' +
+        (
+          complete
+            ? 'Ячейка E стала ЯРКО-ЗЕЛЁНОЙ.'
+            : 'Ячейка E стала ЯРКО-ЖЁЛТОЙ.'
+        ),
+        complete
+          ? 'ok'
+          : 'warn'
+      );
+
+
+      vibrate(
+        [70,45,70]
+      );
+
+
+      return;
+    }
+
+
+    if (
+      res.type ===
+      'all_green'
+    ) {
+      serverBusy =
+        false;
+
+
+      setStatus(
+        '⚠️ <b>Все подходящие ячейки E этого артикула прямо сейчас ярко-зелёные.</b><br><br>' +
+        escapeHtml(
+          res.article
+        ) +
+        '<br>' +
+        escapeHtml(
+          res.name
+        ),
+        'bad'
+      );
+
+
+      return;
+    }
+
+
+    if (
+      res.type ===
+      'not_found'
+    ) {
+      serverBusy =
+        false;
+
+
+      setStatus(
+        '❌ <b>Данного товара нет в этом списке</b>',
+        'bad'
+      );
+
+
+      return;
+    }
+
+
+    serverBusy =
+      false;
+
+
+    setStatus(
+      '❌ Неизвестный ответ сервера.',
+      'bad'
     );
   }
 
   catch(err) {
-    serverBusy = false;
+    serverBusy =
+      false;
+
 
     setStatus(
       '❌ ' +
@@ -2978,313 +3124,33 @@ async function acceptProduct(item) {
 }
 
 
-async function tryAcceptOnServer(
-  item,
-  routeIndex
-) {
-  const routes =
-    Array.isArray(item.routes)
-      ? item.routes
-      : [];
-
-  /*
-   * Только после проверки ВСЕХ выбранных дат
-   * можем утверждать, что количество уже принято.
-   */
-  if (
-    routeIndex >=
-    routes.length
-  ) {
-    /*
-     * Даже после extra по всем датам не верим локальному состоянию.
-     * Перепроверяем реальные цвета E на сервере.
-     */
-    let allActuallyGreen =
-      true;
-
-    for (
-      let i = 0;
-      i < routes.length;
-      i++
-    ) {
-      const statusResponse =
-        await api(
-          'productstatus',
-          {
-            batchId:
-              routes[i].batchId,
-
-            productKey:
-              routes[i].backendProductKey
-          }
-        );
-
-      const rows =
-        statusResponse &&
-        statusResponse.data &&
-        Array.isArray(
-          statusResponse.data.rows
-        )
-          ? statusResponse.data.rows
-          : [];
-
-      if (
-        !rows.length ||
-        rows.some(function(row) {
-          return !row.complete;
-        })
-      ) {
-        allActuallyGreen =
-          false;
-
-        break;
-      }
-    }
-
-    serverBusy =
-      false;
-
-    if (
-      allActuallyGreen
-    ) {
-      setStatus(
-        '⚠️ <b>Все ячейки E этого артикула за выбранные даты зелёные.</b><br><br>' +
-        escapeHtml(
-          item.article || ''
-        ) +
-        '<br>' +
-        escapeHtml(
-          item.name
-        ),
-        'bad'
-      );
-    }
-
-    else {
-      setStatus(
-        '🔄 <b>Есть строка с незелёной E.</b><br><br>' +
-        'Она НЕ считается принятой. Сканер продолжит приёмку.',
-        'search'
-      );
-    }
-
-    return;
-  }
-
-  const route =
-    routes[
-      routeIndex
-    ];
-
-  setStatus(
-    '✅ Артикул найден: <b>' +
-    escapeHtml(
-      item.article || ''
-    ) +
-    '</b><br>' +
-    '<span class="product">' +
-    escapeHtml(
-      item.name
-    ) +
-    '</span><br><br>' +
-    'Проверяю поставку <b>' +
-    escapeHtml(
-      route.batchLabel
-    ) +
-    '</b>…',
-    'search'
-  );
-
-  const response =
-    await api(
-      'accept',
-      {
-        batchId:
-          route.batchId,
-
-        productKey:
-          route.backendProductKey
-      }
-    );
-
-  const res =
-    response.result;
-
-  if (!res) {
-    throw new Error(
-      'Сервер не вернул результат приёмки'
-    );
-  }
-
-
-  /*
-   * Эта конкретная дата уже закрыта.
-   * НЕ показываем пользователю "уже принято".
-   * Сразу проверяем следующую выбранную дату.
-   */
-  if (
-    res.type ===
-    'extra'
-  ) {
-    if (
-      res.summary
-    ) {
-      batchSummaries[
-        route.batchId
-      ] =
-        res.summary;
-    }
-
-    return tryAcceptOnServer(
-      item,
-      routeIndex + 1
-    );
-  }
-
-
-  /*
-   * Успешно принята одна физическая единица.
-   */
-  if (
-    res.type ===
-      'complete'
-    ||
-    res.type ===
-      'partial'
-  ) {
-    serverBusy = false;
-
-    route.accepted =
-      Number(
-        res.accepted || 0
-      );
-
-    if (
-      res.summary
-    ) {
-      batchSummaries[
-        route.batchId
-      ] =
-        res.summary;
-    }
-
-    recalcMergedItem(
-      item
-    );
-
-    updateSummary(
-      combineSummaries()
-    );
-
-    blockedKey =
-      item.productKey;
-
-    blockedSince =
-      Date.now();
-
-    blockedMisses =
-      0;
-
-    blockedFingerprint =
-      captureFingerprint();
-
-    const mergedComplete =
-      Number(
-        item.accepted || 0
-      )
-      >=
-      Number(
-        item.expected || 0
-      );
-
-    const remainingAll =
-      Math.max(
-        Number(
-          item.expected || 0
-        )
-        -
-        Number(
-          item.accepted || 0
-        ),
-        0
-      );
-
-    setStatus(
-      (
-        mergedComplete
-          ? '✅ '
-          : '🟡 '
-      ) +
-      '<b>' +
-      escapeHtml(
-        item.name
-      ) +
-      '</b><br><br>' +
-      'Артикул: <b>' +
-      escapeHtml(
-        item.article || ''
-      ) +
-      '</b><br>' +
-      'Принято по выбранным датам: <b>' +
-      item.accepted +
-      '</b> из ' +
-      item.expected +
-      '<br>' +
-      'Осталось: <b>' +
-      remainingAll +
-      '</b><br><br>' +
-      'Сейчас учтено в: <b>' +
-      escapeHtml(
-        route.batchLabel
-      ) +
-      '</b><br>' +
-      (
-        res.rowComplete
-          ? 'Ячейка E этой строки стала зелёной.'
-          : 'Ячейка E этой строки стала жёлтой.'
-      ),
-      mergedComplete
-        ? 'ok'
-        : 'warn'
-    );
-
-    vibrate(
-      [70,45,70]
-    );
-
-    return;
-  }
-
-
-  serverBusy = false;
-
-  setStatus(
-    '❌ Сервер не смог отметить эту позицию.',
-    'bad'
-  );
-}
-
-
-/* =====================================================
+/* ============================================================
    LEVENSHTEIN
-===================================================== */
+============================================================ */
 
-function levenshtein(a, b) {
+function levenshtein(
+  a,
+  b
+) {
   const m =
     a.length;
 
+
   const n =
     b.length;
+
 
   const prev =
     new Array(
       n + 1
     );
 
+
   const curr =
     new Array(
       n + 1
     );
+
 
   for (
     let j = 0;
@@ -3295,6 +3161,7 @@ function levenshtein(a, b) {
       j;
   }
 
+
   for (
     let i = 1;
     i <= m;
@@ -3303,24 +3170,36 @@ function levenshtein(a, b) {
     curr[0] =
       i;
 
+
     for (
       let j = 1;
       j <= n;
       j++
     ) {
       const cost =
-        a[i - 1] ===
-        b[j - 1]
+        a[
+          i - 1
+        ]
+        ===
+        b[
+          j - 1
+        ]
           ? 0
           : 1;
+
 
       curr[j] =
         Math.min(
           prev[j] + 1,
-          curr[j - 1] + 1,
-          prev[j - 1] + cost
+          curr[
+            j - 1
+          ] + 1,
+          prev[
+            j - 1
+          ] + cost
         );
     }
+
 
     for (
       let j = 0;
@@ -3332,45 +3211,63 @@ function levenshtein(a, b) {
     }
   }
 
+
   return prev[n];
 }
 
 
-/* =====================================================
+/* ============================================================
    UI
-===================================================== */
+============================================================ */
 
 function updateSummary(data) {
   if (!data) {
     return;
   }
 
+
   document
-    .getElementById('accepted')
+    .getElementById(
+      'accepted'
+    )
     .textContent =
     data.accepted;
 
+
   document
-    .getElementById('expected')
+    .getElementById(
+      'expected'
+    )
     .textContent =
     data.expected;
 
+
   document
-    .getElementById('remaining')
+    .getElementById(
+      'remaining'
+    )
     .textContent =
     data.remaining;
 }
 
 
-function setStatus(html, type) {
+function setStatus(
+  html,
+  type
+) {
   document
-    .getElementById('statusCard')
+    .getElementById(
+      'statusCard'
+    )
     .className =
     'card ' +
     type;
 
+
   document
-    .getElementById('status')
+    .getElementById(
+      'status'
+    )
     .innerHTML =
     html;
 }
@@ -3378,7 +3275,9 @@ function setStatus(html, type) {
 
 function setOcrBadge(text) {
   document
-    .getElementById('ocrBadge')
+    .getElementById(
+      'ocrBadge'
+    )
     .textContent =
     text;
 }
@@ -3386,28 +3285,58 @@ function setOcrBadge(text) {
 
 function showSeen(text) {
   const cleaned =
-    String(text || '')
-      .replace(/\s+/g, ' ')
+    String(
+      text || ''
+    )
+      .replace(
+        /\s+/g,
+        ' '
+      )
       .trim()
-      .slice(0, 260);
+      .slice(
+        0,
+        250
+      );
+
 
   document
-    .getElementById('seen')
+    .getElementById(
+      'seen'
+    )
     .textContent =
     cleaned
-      ? 'OCR прочитал: ' +
-        cleaned
-      : 'OCR пока не прочитал текст этикетки.';
+      ? (
+          'OCR прочитал: ' +
+          cleaned
+        )
+      : 'OCR пока не прочитал текст.';
 }
 
 
 function escapeHtml(value) {
-  return String(value || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+  return String(
+    value || ''
+  )
+    .replace(
+      /&/g,
+      '&amp;'
+    )
+    .replace(
+      /</g,
+      '&lt;'
+    )
+    .replace(
+      />/g,
+      '&gt;'
+    )
+    .replace(
+      /"/g,
+      '&quot;'
+    )
+    .replace(
+      /'/g,
+      '&#039;'
+    );
 }
 
 
@@ -3417,13 +3346,14 @@ function vibrate(pattern) {
       pattern
     );
   }
+
   catch(e) {}
 }
 
 
-/* =====================================================
+/* ============================================================
    AUTO LOGIN
-===================================================== */
+============================================================ */
 
 window.onload =
 async function() {
@@ -3431,14 +3361,21 @@ async function() {
     return;
   }
 
+
   document
-    .getElementById('pin')
+    .getElementById(
+      'pin'
+    )
     .value =
     accessPin;
 
+
   try {
     const response =
-      await api('init');
+      await api(
+        'init'
+      );
+
 
     initApp(
       response.data
@@ -3451,7 +3388,9 @@ async function() {
         'warehousePin'
       );
 
-    accessPin = '';
+
+    accessPin =
+      '';
   }
 };
 </script>
