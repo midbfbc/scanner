@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Приёмка РИМС</title>
+<title>Приёмка РИМС V4</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
@@ -213,9 +213,9 @@ button:disabled{opacity:.45}
       <br><br>
       Из таблицы ничего не удаляется и значения не меняются:
       сканер меняет только фон <b>ячейки E</b> найденной позиции.
-      Желтый — принято не всё количество, зеленый — принято полностью.
+      Желтый — принято не всё количество, зеленый — принято полностью.<br><br><b>Версия сканера: V4</b>.
       Надпись «Жду смену товара» означает только защиту от двойного скана,
-      а не то, что следующая коробка уже принята.
+      и не используется для определения статуса товара.
     </div>
   </div>
 
@@ -2878,30 +2878,18 @@ function processLabelText(text, confidence) {
 }
 
 
-function getNextRoute(item) {
-  const routes =
-    Array.isArray(item.routes)
-      ? item.routes
-      : [];
-
-  for (
-    let i = 0;
-    i < routes.length;
-    i++
-  ) {
-    if (
-      Number(routes[i].accepted || 0)
-      <
-      Number(routes[i].expected || 0)
-    ) {
-      return routes[i];
-    }
-  }
-
-  return null;
-}
-
-
+/*
+ * ВАЖНО:
+ * frontend больше НИКОГДА не решает сам,
+ * что товар "уже принят", по локальному accepted.
+ *
+ * На каждый физический скан мы спрашиваем сервер.
+ * Если первая выбранная дата уже закрыта — сервер ответит extra,
+ * и мы автоматически пробуем следующую дату.
+ *
+ * Сообщение "всё уже принято" появляется только если СЕРВЕР
+ * подтвердил extra по ВСЕМ выбранным датам этого артикула.
+ */
 function recalcMergedItem(item) {
   if (
     !item ||
@@ -2938,59 +2926,16 @@ async function acceptProduct(item) {
     return;
   }
 
-  const route =
-    getNextRoute(item);
-
-  if (!route) {
-    setStatus(
-      '⚠️ По этому артикулу уже принято всё количество за выбранные даты.<br><br>' +
-      '<b>' +
-      escapeHtml(item.name) +
-      '</b>',
-      'bad'
-    );
-
-    return;
-  }
-
   serverBusy = true;
 
   candidateKey = '';
   candidateHits = 0;
   notFoundHits = 0;
 
-  setStatus(
-    '✅ Артикул: <b>' +
-    escapeHtml(
-      item.article || ''
-    ) +
-    '</b><br>' +
-    '<span class="product">' +
-    escapeHtml(item.name) +
-    '</span><br><br>' +
-    'Отмечаю 1 штуку в <b>' +
-    escapeHtml(route.batchLabel) +
-    '</b>…',
-    'search'
-  );
-
   try {
-    const response =
-      await api(
-        'accept',
-        {
-          batchId:
-            route.batchId,
-
-          productKey:
-            route.backendProductKey
-        }
-      );
-
-    handleResult(
-      response.result,
+    await tryAcceptOnServer(
       item,
-      route
+      0
     );
   }
 
@@ -3009,48 +2954,166 @@ async function acceptProduct(item) {
 }
 
 
-function handleResult(
-  res,
+async function tryAcceptOnServer(
   item,
-  route
+  routeIndex
 ) {
-  serverBusy = false;
+  const routes =
+    Array.isArray(item.routes)
+      ? item.routes
+      : [];
 
-  if (!res) {
+  /*
+   * Только после проверки ВСЕХ выбранных дат
+   * можем утверждать, что количество уже принято.
+   */
+  if (
+    routeIndex >=
+    routes.length
+  ) {
+    serverBusy = false;
+
+    recalcMergedItem(
+      item
+    );
+
+    updateSummary(
+      combineSummaries()
+    );
+
+    setStatus(
+      '⚠️ <b>По этому артикулу сервер подтвердил, что всё количество уже принято по всем выбранным датам.</b><br><br>' +
+      escapeHtml(
+        item.article || ''
+      ) +
+      '<br>' +
+      escapeHtml(
+        item.name
+      ),
+      'bad'
+    );
+
     return;
   }
 
-  if (
-    res.summary &&
-    route
-  ) {
-    batchSummaries[
-      route.batchId
-    ] =
-      res.summary;
+  const route =
+    routes[
+      routeIndex
+    ];
+
+  setStatus(
+    '✅ Артикул найден: <b>' +
+    escapeHtml(
+      item.article || ''
+    ) +
+    '</b><br>' +
+    '<span class="product">' +
+    escapeHtml(
+      item.name
+    ) +
+    '</span><br><br>' +
+    'Проверяю поставку <b>' +
+    escapeHtml(
+      route.batchLabel
+    ) +
+    '</b>…',
+    'search'
+  );
+
+  const response =
+    await api(
+      'accept',
+      {
+        batchId:
+          route.batchId,
+
+        productKey:
+          route.backendProductKey
+      }
+    );
+
+  const res =
+    response.result;
+
+  if (!res) {
+    throw new Error(
+      'Сервер не вернул результат приёмки'
+    );
   }
 
+
+  /*
+   * Эта конкретная дата уже закрыта.
+   * НЕ показываем пользователю "уже принято".
+   * Сразу проверяем следующую выбранную дату.
+   */
   if (
-    res.type === 'complete' ||
-    res.type === 'partial'
+    res.type ===
+    'extra'
   ) {
-    if (route) {
-      route.accepted =
-        Number(res.accepted || 0);
+    route.accepted =
+      Number(
+        res.accepted ||
+        route.expected ||
+        0
+      );
+
+    if (
+      res.summary
+    ) {
+      batchSummaries[
+        route.batchId
+      ] =
+        res.summary;
     }
 
-    if (item) {
-      recalcMergedItem(item);
+    recalcMergedItem(
+      item
+    );
+
+    return tryAcceptOnServer(
+      item,
+      routeIndex + 1
+    );
+  }
+
+
+  /*
+   * Успешно принята одна физическая единица.
+   */
+  if (
+    res.type ===
+      'complete'
+    ||
+    res.type ===
+      'partial'
+  ) {
+    serverBusy = false;
+
+    route.accepted =
+      Number(
+        res.accepted || 0
+      );
+
+    if (
+      res.summary
+    ) {
+      batchSummaries[
+        route.batchId
+      ] =
+        res.summary;
     }
+
+    recalcMergedItem(
+      item
+    );
 
     updateSummary(
       combineSummaries()
     );
 
     blockedKey =
-      item
-        ? item.productKey
-        : res.productKey;
+      item.productKey;
 
     blockedSince =
       Date.now();
@@ -3062,28 +3125,23 @@ function handleResult(
       captureFingerprint();
 
     const mergedComplete =
-      item
-        ? (
-            Number(item.accepted || 0)
-            >=
-            Number(item.expected || 0)
-          )
-        : false;
-
-    const acceptedAll =
-      item
-        ? item.accepted
-        : res.accepted;
-
-    const expectedAll =
-      item
-        ? item.expected
-        : res.expected;
+      Number(
+        item.accepted || 0
+      )
+      >=
+      Number(
+        item.expected || 0
+      );
 
     const remainingAll =
       Math.max(
-        Number(expectedAll || 0) -
-        Number(acceptedAll || 0),
+        Number(
+          item.expected || 0
+        )
+        -
+        Number(
+          item.accepted || 0
+        ),
         0
       );
 
@@ -3095,24 +3153,25 @@ function handleResult(
       ) +
       '<b>' +
       escapeHtml(
-        item
-          ? item.name
-          : res.name
+        item.name
       ) +
       '</b><br><br>' +
+      'Артикул: <b>' +
+      escapeHtml(
+        item.article || ''
+      ) +
+      '</b><br>' +
       'Принято по выбранным датам: <b>' +
-      acceptedAll +
+      item.accepted +
       '</b> из ' +
-      expectedAll +
+      item.expected +
       '<br>' +
       'Осталось: <b>' +
       remainingAll +
       '</b><br><br>' +
       'Сейчас учтено в: <b>' +
       escapeHtml(
-        route
-          ? route.batchLabel
-          : ''
+        route.batchLabel
       ) +
       '</b><br>' +
       (
@@ -3132,53 +3191,11 @@ function handleResult(
     return;
   }
 
-  if (
-    res.type === 'extra'
-  ) {
-    if (route) {
-      route.accepted =
-        Number(
-          res.accepted ||
-          route.expected ||
-          0
-        );
-    }
 
-    if (item) {
-      recalcMergedItem(item);
-    }
-
-    if (
-      res.summary &&
-      route
-    ) {
-      batchSummaries[
-        route.batchId
-      ] =
-        res.summary;
-    }
-
-    updateSummary(
-      combineSummaries()
-    );
-
-    setStatus(
-      '⚠️ В поставке <b>' +
-      escapeHtml(
-        route
-          ? route.batchLabel
-          : ''
-      ) +
-      '</b> этот артикул уже закрыт.<br><br>' +
-      'Следующая штука будет отнесена к следующей выбранной дате.',
-      'warn'
-    );
-
-    return;
-  }
+  serverBusy = false;
 
   setStatus(
-    '❌ Позиция не найдена в выбранных поставках.',
+    '❌ Сервер не смог отметить эту позицию.',
     'bad'
   );
 }
