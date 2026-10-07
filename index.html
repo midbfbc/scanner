@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Приёмка РИМС V6</title>
+<title>Приёмка РИМС V7</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
@@ -213,7 +213,7 @@ button:disabled{opacity:.45}
       <br><br>
       Из таблицы ничего не удаляется и значения не меняются:
       сканер меняет только фон <b>ячейки E</b> найденной позиции.
-      Желтый — принято не всё количество, зеленый — принято полностью.<br><br><b>Версия сканера: V6 FAST / GREEN=COMPLETE</b>.
+      Желтый — принято не всё количество, зеленый — принято полностью.<br><br><b>Версия сканера: V7 • E=ИСТИНА • FAST</b>.
       Надпись «Жду смену товара» означает только защиту от двойного скана,
       и не используется для определения статуса товара.
     </div>
@@ -393,6 +393,45 @@ async function login() {
 
 
 function initApp(data) {
+  /*
+   * ЖЁСТКАЯ ПРОВЕРКА РАЗВЁРТЫВАНИЯ.
+   * Если Apps Script не V7, сканер вообще не запускается,
+   * чтобы старая логика больше не могла врать про "уже принято".
+   */
+  if (
+    !data ||
+    data.version !== 'V7_E_CELL_ONLY'
+  ) {
+    document
+      .getElementById('login')
+      .classList
+      .add('hidden');
+
+    document
+      .getElementById('app')
+      .classList
+      .remove('hidden');
+
+    document
+      .getElementById('startBtn')
+      .disabled = true;
+
+    setStatus(
+      '❌ <b>Apps Script не обновлён до V7.</b><br><br>' +
+      'Сейчас backend: <b>' +
+      escapeHtml(
+        data && data.version
+          ? data.version
+          : 'старая версия'
+      ) +
+      '</b><br><br>' +
+      'Нужно создать новую версию развертывания Apps Script.',
+      'bad'
+    );
+
+    return;
+  }
+
   batches =
     Array.isArray(data.batches)
       ? data.batches
@@ -1235,20 +1274,15 @@ async function ocrLoop() {
      * один полноэкранный OCR-проход вместо трёх разных.
      * Чередуем мягкий и контрастный кадр.
      */
-    const thresholdMode =
-      pass % 2 === 0;
-
     const canvas =
       captureLabel(
         false,
         0,
-        thresholdMode
+        false
       );
 
     const label =
-      thresholdMode
-        ? 'быстрый контраст'
-        : 'быстрый';
+      'быстрый';
 
     if (canvas) {
       setOcrBadge(
@@ -1306,7 +1340,7 @@ async function ocrLoop() {
 
     setTimeout(
       ocrLoop,
-      40
+      15
     );
   }
 }
@@ -1396,12 +1430,12 @@ function captureLabel(
 
   const maxW =
     centerOnly
-      ? 900
-      : 1050;
+      ? 720
+      : 860;
 
   const scale =
     Math.min(
-      1.20,
+      1.05,
       maxW /
       Math.max(sw, 1)
     );
@@ -2798,7 +2832,7 @@ function processLabelText(text, confidence) {
      * Два осмысленных OCR-прохода без совпадения означают,
      * что в выбранных датах такого артикула, скорее всего, нет.
      */
-    if (notFoundHits >= 3) {
+    if (notFoundHits >= 2) {
       setStatus(
         '❌ <b>Данного товара нет в этом списке</b><br><br>' +
         '<span style="font-size:12px">' +
@@ -3014,7 +3048,7 @@ async function tryAcceptOnServer(
       allActuallyGreen
     ) {
       setStatus(
-        '⚠️ <b>Все строки этого артикула за выбранные даты реально зелёные.</b><br><br>' +
+        '⚠️ <b>Все ячейки E этого артикула за выбранные даты зелёные.</b><br><br>' +
         escapeHtml(
           item.article || ''
         ) +
@@ -3027,13 +3061,9 @@ async function tryAcceptOnServer(
     }
 
     else {
-      /*
-       * Если хотя бы одна E НЕ зелёная,
-       * сообщение "уже принято" запрещено.
-       */
       setStatus(
-        '🔄 В таблице есть непринятая строка этого артикула.<br><br>' +
-        '<b>Повтори скан — она не считается принятой.</b>',
+        '🔄 <b>Есть строка с незелёной E.</b><br><br>' +
+        'Она НЕ считается принятой. Сканер продолжит приёмку.',
         'search'
       );
     }
