@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Приёмка РИМС V4</title>
+<title>Приёмка РИМС V5</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
@@ -213,7 +213,7 @@ button:disabled{opacity:.45}
       <br><br>
       Из таблицы ничего не удаляется и значения не меняются:
       сканер меняет только фон <b>ячейки E</b> найденной позиции.
-      Желтый — принято не всё количество, зеленый — принято полностью.<br><br><b>Версия сканера: V4</b>.
+      Желтый — принято не всё количество, зеленый — принято полностью.<br><br><b>Версия сканера: V5 COLOR=TRUTH</b>.
       Надпись «Жду смену товара» означает только защиту от двойного скана,
       и не используется для определения статуса товара.
     </div>
@@ -402,7 +402,9 @@ function initApp(data) {
     .getElementById('sheetName')
     .textContent =
     'Лист: ' +
-    (data.sheetName || '');
+    (data.sheetName || '') +
+    ' • backend: ' +
+    (data.version || 'не определён');
 
   const storeSelect =
     document.getElementById('storeSelect');
