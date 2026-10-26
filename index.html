@@ -1890,7 +1890,7 @@ controls.innerHTML=`
     <label>Что сканировать <select id="scanKind"><option value="article">Артикул</option><option value="order">Номер заказа</option></select></label>
     <input id="orderFilter" placeholder="Номер заказа для уточнения (необязательно)" inputmode="numeric"></div>
   <div style="display:flex;gap:8px;margin-top:12px"><input id="manualCode" placeholder="Артикул или наименование" style="min-width:0;flex:1">
-    <button class="blue" style="width:auto" onclick="manualScan()">Внести</button></div>
+    <button id="manualAdd" type="button" class="blue" style="width:auto" onclick="manualScan()">Добавить</button></div>
   <button id="nextScan" hidden class="gray" onclick="armScan()" style="margin-top:10px">Следующий товар</button>
   <button id="retryReturn" class="blue hidden" onclick="commitReturn()">Повторить ту же операцию</button>
   <button id="cancelReturn" class="gray hidden" onclick="cancelReturn()">Отменить, если товар ещё не записан</button>
@@ -1900,7 +1900,8 @@ el('app').prepend(controls);
 const extraStyle=document.createElement('style');
 extraStyle.textContent='select{max-width:100%;padding:10px;background:#182334;color:white;border:1px solid #45516a;border-radius:8px;margin:6px 0}#batchChoices label{display:block;padding:8px}#batchChoices input{width:auto;margin-right:8px}#orderFilter,#manualCode{box-sizing:border-box;padding:12px}button:disabled{opacity:.45}';
 document.head.append(extraStyle);
-el('manualCode').addEventListener('keydown',e=>{if(e.key==='Enter')manualScan();});
+el('manualCode').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();manualScan();}});
+el('manualCode').addEventListener('focus',()=>{modeEpoch++;});
 el('scanKind').addEventListener('change',()=>{
   scanArmed=false; el('manualCode').placeholder=el('scanKind').value==='order'?'Номер заказа':'Артикул или наименование';
   setStatus('Нажмите «Следующий товар», чтобы начать сканирование.','search');
@@ -2102,7 +2103,7 @@ function cameraObserveEmpty() {
   if(cameraClearFrames>=3 && Date.now()-cameraClearSince>=5000){cameraLastKey='';cameraLastBarcode='';pendingBarcode='';}
 }
 barcodeFound=async function(code){
-  if(!scanArmed||serverBusy||ocrBusy||retryRequired)return;
+  if(manualBusy || document.activeElement===el('manualCode') || !scanArmed||serverBusy||ocrBusy||retryRequired)return;
   if(code===cameraLastBarcode)return;
   if(scanMode==='returns') {
     if(el('scanKind').value==='order') {
@@ -2120,7 +2121,7 @@ barcodeFound=async function(code){
   }
 };
 runOcr=async function(forced){
-  if(!ocrReady||ocrBusy||serverBusy||!scanArmed||retryRequired)return;
+  if(manualBusy || document.activeElement===el('manualCode') || !ocrReady||ocrBusy||serverBusy||!scanArmed||retryRequired)return;
   const frame=getFrame();if(!frame)return;
   const epoch=modeEpoch;ocrBusy=true;
   let action=null;
@@ -2149,20 +2150,36 @@ runOcr=async function(forced){
   }catch(e){showError(e);}finally{ocrBusy=false;}
   if(action)await action();
 };
+let manualBusy=false;
 async function manualScan(){
-  if(serverBusy||ocrBusy||retryRequired)return;
-  const text=el('manualCode').value.trim();if(!text)return;
-  if(scanMode==='returns'){
-    if(el('scanKind').value==='order')await findReturn('',text,'');
-    else{
-      const m=exactMatches(text,returnCatalog);
-      if(m.length>1){setStatus('Уточните бренд вместе с артикулом.','warn');return;}
-      await findReturn(m.length?m[0].article:text,el('orderFilter').value.trim(),m.length?m[0].brandKey:'');
+  if(manualBusy)return;
+  if(retryRequired){setStatus('Сначала завершите незавершённый возврат кнопкой повтора или отмены.','warn');return;}
+  if(serverBusy){setStatus('Предыдущая операция ещё выполняется. Дождитесь результата и нажмите «Добавить».','warn');return;}
+  const input=el('manualCode'), text=input.value.trim();
+  if(!text){setStatus('Введите артикул, затем нажмите «Добавить».','warn');input.focus();return;}
+  // Invalidate the in-flight OCR frame; manual input does not wait for OCR.
+  modeEpoch++;
+  const wasArmed=scanArmed;scanArmed=false;manualBusy=true;
+  const button=el('manualAdd');button.disabled=true;button.textContent='Добавляю…';
+  try{
+    if(scanMode==='returns'){
+      if(!returnSheetId){setStatus('Сначала выберите лист отчёта для возврата.','warn');return;}
+      if(el('scanKind').value==='order')await findReturn('',text,'');
+      else{
+        const m=exactMatches(text,returnCatalog);
+        if(m.length>1){setStatus('Этот артикул есть у нескольких брендов. Введите бренд и артикул.','warn');return;}
+        await findReturn(m.length?m[0].article:text,el('orderFilter').value.trim(),m.length?m[0].brandKey:'');
+      }
+    }else{
+      if(!selectedBatches){setStatus('Выберите поставки и нажмите «Применить выбранные даты».','warn');return;}
+      const m=exactMatches(text,acceptCatalog);
+      if(m.length!==1){setStatus('Укажите артикул и бренд из выбранной поставки.','warn');return;}
+      await acceptItem(m[0],pendingBarcode);
     }
-  }else{
-    const m=exactMatches(text,acceptCatalog);
-    if(m.length!==1){setStatus('Укажите артикул и бренд из выбранной поставки.','warn');return;}
-    await acceptItem(m[0],pendingBarcode);
+  }catch(e){showError(e);}
+  finally{
+    manualBusy=false;button.disabled=false;button.textContent='Добавить';
+    if(!retryRequired)scanArmed=wasArmed;
   }
 }
 
