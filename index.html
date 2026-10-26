@@ -1883,8 +1883,11 @@ controls.innerHTML=`
     <button id="tabAccept" class="blue" onclick="switchMode('accept')">Приёмка</button>
     <button id="tabReturns" class="gray" onclick="switchMode('returns')">Возвраты</button>
   </div>
-  <div id="acceptControls"><b>Поставки для приёмки</b><div id="batchChoices" style="max-height:200px;overflow:auto;margin:12px 0"></div>
-    <button class="blue" onclick="loadBatches()">Применить выбранные даты</button></div>
+  <div id="acceptControls"><b>Поставка для приёмки</b>
+    <label style="display:block">Магазин <select id="acceptStore" style="width:100%" onchange="chooseAcceptStore()"><option value="">Выберите магазин</option></select></label>
+    <label style="display:block">Дата <select id="acceptDate" style="width:100%" onchange="chooseAcceptDate()" disabled><option value="">Сначала выберите магазин</option></select></label>
+    <div id="acceptSelectionInfo" class="small"></div>
+    <button id="startAccept" class="blue" onclick="loadBatches()" disabled>Начать приёмку</button></div>
   <div id="returnControls" class="hidden"><label>Лист отчёта <select id="reportSheet" onchange="loadReturnCatalog()"></select></label>
     <p class="small">Ищем снизу вверх. Если все совпадения красные — переносим без номера заказа.</p>
     <label>Что сканировать <select id="scanKind"><option value="article">Артикул</option><option value="order">Номер заказа</option></select></label>
@@ -1921,27 +1924,64 @@ if(info && info.querySelector('.small')) info.querySelector('.small').textConten
 initApp=function(data) {
   el('login').classList.add('hidden'); el('app').classList.remove('hidden');
   el('shipment').textContent='Приёмка • '+data.sheetName;
-  el('batchChoices').innerHTML=(data.batches||[]).map(b=>
-    '<label><input type="checkbox" value="'+escapeHtml(b.id)+'">'+escapeHtml(b.label)+' · '+b.totalUnits+' шт.</label>').join('') || 'В текущем листе нет поставок.';
+  acceptanceBatches=data.batches||[];
+  const stores=[...new Set(acceptanceBatches.map(b=>b.store).filter(Boolean))];
+  el('acceptStore').innerHTML='<option value="">Выберите магазин</option>'+stores.map(store=>'<option value="'+escapeHtml(store)+'">'+escapeHtml(store)+'</option>').join('');
+  chosenStore='';chosenDate='';
+  el('acceptDate').innerHTML='<option value="">Сначала выберите магазин</option>';el('acceptDate').disabled=true;
+  el('startAccept').disabled=true;
   updateSummary({accepted:0,expected:0,remaining:0});
-  scanArmed=false; setStatus('Выберите даты для приёмки или откройте «Возвраты».','search');
+  scanArmed=false; setStatus('Выберите магазин и дату для приёмки или откройте «Возвраты».','search');
   try {returnOperation=JSON.parse(localStorage.getItem('rimsPendingReturn')||'null');} catch(e){returnOperation=null;}
   if(returnOperation) {
     retryRequired=true; el('retryReturn').classList.remove('hidden'); el('cancelReturn').classList.remove('hidden');
     setStatus('Есть незавершённый возврат. Нажмите «Повторить ту же операцию».','warn');
   }
 };
+let acceptanceBatches=[],chosenStore='',chosenDate='';
+function dateKeyForBatch(b){
+  const m=String(b.date||'').match(/^(\d{1,2})[.\/-](\d{1,2})$/);
+  return m?m[1].padStart(2,'0')+'.'+m[2].padStart(2,'0'):String(b.date||'Без даты');
+}
+function selectedAcceptanceRows(){
+  return acceptanceBatches.filter(b=>b.store===chosenStore && dateKeyForBatch(b)===chosenDate);
+}
+function resetAcceptanceSelection(){
+  modeEpoch++;scanArmed=false;selectedBatches='';acceptCatalog=[];
+  if(scanMode==='accept')catalog=[];
+  cameraLastKey='';cameraLastBarcode='';pendingBarcode='';
+  updateSummary({accepted:0,expected:0,remaining:0});
+  el('startAccept').disabled=!chosenStore||!chosenDate;
+  setStatus('Выберите магазин и дату, затем нажмите «Начать приёмку».','search');
+}
+function chooseAcceptStore(){
+  if(serverBusy||manualBusy||retryRequired){el('acceptStore').value=chosenStore;return;}
+  chosenStore=el('acceptStore').value;chosenDate='';resetAcceptanceSelection();
+  const dates=[...new Set(acceptanceBatches.filter(b=>b.store===chosenStore).map(dateKeyForBatch))];
+  el('acceptDate').innerHTML='<option value="">Выберите дату</option>'+dates.map(d=>'<option value="'+escapeHtml(d)+'">'+escapeHtml(d)+'</option>').join('');
+  el('acceptDate').disabled=!chosenStore;el('acceptSelectionInfo').textContent='';
+}
+function chooseAcceptDate(){
+  if(serverBusy||manualBusy||retryRequired){el('acceptDate').value=chosenDate;return;}
+  chosenDate=el('acceptDate').value;resetAcceptanceSelection();
+  const total=selectedAcceptanceRows().reduce((n,b)=>n+Number(b.totalUnits||0),0);
+  el('acceptSelectionInfo').textContent=chosenDate?chosenStore+' · '+chosenDate+' · '+total+' шт.':'';
+}
 async function loadBatches() {
-  if(serverBusy || retryRequired) return;
-  const ids=[...el('batchChoices').querySelectorAll('input:checked')].map(x=>x.value).join('~');
-  if(!ids){setStatus('Выберите хотя бы одну поставку.','warn');return;}
-  serverBusy=true; scanArmed=false;
+  if(serverBusy || retryRequired || manualBusy)return;
+  const ids=selectedAcceptanceRows().map(b=>b.id).join('~');
+  if(!chosenStore||!chosenDate||!ids){setStatus('Выберите магазин и дату поставки.','warn');return;}
+  serverBusy=true;scanArmed=false;modeEpoch++;
+  ['acceptStore','acceptDate','startAccept'].forEach(id=>el(id).disabled=true);
+  setStatus('Загружаю '+escapeHtml(chosenStore)+' за '+escapeHtml(chosenDate)+'…','search');
   try {
     const response=await api('catalog',{batchIds:ids});
-    selectedBatches=ids; acceptCatalog=response.data.catalog||[];
-    catalog=acceptCatalog; updateSummary(response.data.summary); armScan();
-    await startCamera();
-  } catch(e){showError(e);} finally{serverBusy=false;}
+    selectedBatches=ids;acceptCatalog=response.data.catalog||[];catalog=acceptCatalog;
+    el('shipment').textContent='Приёмка • '+chosenStore+' • '+chosenDate;
+    updateSummary(response.data.summary);armScan();await startCamera();
+  }catch(e){showError(e);}finally{
+    serverBusy=false;['acceptStore','acceptDate','startAccept'].forEach(id=>el(id).disabled=false);
+  }
 }
 async function switchMode(mode) {
   if(serverBusy || ocrBusy || retryRequired){setStatus('Сначала завершите текущую операцию.','warn');return;}
@@ -1965,7 +2005,7 @@ async function switchMode(mode) {
     await loadReturnCatalog(); await cameraPromise;
   } else {
     catalog=acceptCatalog; el('shipment').textContent='Приёмка';
-    if(selectedBatches)armScan(); else setStatus('Выберите поставки и нажмите «Применить выбранные даты».','search');
+    if(selectedBatches)armScan(); else setStatus('Выберите магазин и дату, затем нажмите «Начать приёмку».','search');
   }
 }
 async function loadReturnCatalog() {
@@ -2184,7 +2224,7 @@ async function manualScan(){
         await findReturn(m.length?m[0].article:text,el('orderFilter').value.trim(),m.length?m[0].brandKey:'');
       }
     }else{
-      if(!selectedBatches){setStatus('Выберите поставки и нажмите «Применить выбранные даты».','warn');return;}
+      if(!selectedBatches){setStatus('Выберите магазин и дату, затем нажмите «Начать приёмку».','warn');return;}
       const m=exactMatches(text,acceptCatalog);
       if(m.length!==1){setStatus('Укажите артикул и бренд из выбранной поставки.','warn');return;}
       await acceptItem(m[0],pendingBarcode);
