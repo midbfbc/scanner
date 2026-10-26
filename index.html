@@ -1941,12 +1941,12 @@ controls.innerHTML=`
   <div id="acceptControls"><b>Поставки для приёмки</b><div id="batchChoices" style="max-height:200px;overflow:auto;margin:12px 0"></div>
     <button class="blue" onclick="loadBatches()">Применить выбранные даты</button></div>
   <div id="returnControls" class="hidden"><label>Лист отчёта <select id="reportSheet" onchange="loadReturnCatalog()"></select></label>
-    <p class="small">Ищем снизу вверх в выбранном листе. Красные номера пропускаем.</p>
+    <p class="small">Ищем снизу вверх. Если все совпадения красные — переносим без номера заказа.</p>
     <label>Что сканировать <select id="scanKind"><option value="article">Артикул</option><option value="order">Номер заказа</option></select></label>
     <input id="orderFilter" placeholder="Номер заказа для уточнения (необязательно)" inputmode="numeric"></div>
   <div style="display:flex;gap:8px;margin-top:12px"><input id="manualCode" placeholder="Артикул или наименование" style="min-width:0;flex:1">
     <button class="blue" style="width:auto" onclick="manualScan()">Внести</button></div>
-  <button id="nextScan" class="gray" onclick="armScan()" style="margin-top:10px">Следующий товар</button>
+  <button id="nextScan" hidden class="gray" onclick="armScan()" style="margin-top:10px">Следующий товар</button>
   <button id="retryReturn" class="blue hidden" onclick="commitReturn()">Повторить ту же операцию</button>
   <button id="cancelReturn" class="gray hidden" onclick="cancelReturn()">Отменить, если товар ещё не записан</button>
   <button class="gray" onclick="toggleTorch()" style="margin-top:8px">Фонарик</button>
@@ -2004,6 +2004,7 @@ async function switchMode(mode) {
     try {
       serverBusy=true;
       const r=await api('returns_init');
+      if(r.data.returnsRevision!=='AUTO_RETURNS_3') throw new Error('Подключён прежний код возвратов. Опубликуйте SCANNER_AUTO_BACKEND как новую версию существующего развёртывания.');
       el('reportSheet').innerHTML=r.data.sheets.map(s=>'<option value="'+s.id+'">'+escapeHtml(s.name)+'</option>').join('');
       el('reportSheet').value=String(r.data.current||'');
     } catch(e){showError(e);return;} finally{serverBusy=false;}
@@ -2071,7 +2072,7 @@ async function findReturn(article,order,brandKey) {
   try {
     const r=await api('returns_find',{sheetId:returnSheetId,article:article||'',order:order||'',brandKey:brandKey||''});
     const matches=r.data.matches||[];
-    if(!matches.length){setStatus('Не найден подходящий заказ без красной отметки. Проверьте ввод или выберите другой лист отчёта.','warn');return;}
+    if(!matches.length){setStatus('Артикул не найден с выбранными брендом, листом и фильтром заказа. Красная отметка не запрещает перенос.','warn');return;}
     if(matches.length===1){next=matches[0];}
     else {
       setStatus('В заказе несколько позиций. Выберите товар для возврата.','warn');
@@ -2084,6 +2085,7 @@ async function findReturn(article,order,brandKey) {
     }
   }catch(e){showError(e);}finally{serverBusy=false;}
   if(next)await beginReturn(next);
+  else if(!retryRequired)scanArmed=true;
 }
 async function beginReturn(match){
   if(serverBusy||retryRequired)return;
@@ -2101,7 +2103,10 @@ async function commitReturn(){
   try{
     const r=await api('returns_commit',{ticket:JSON.stringify(returnOperation.ticket),requestId:returnOperation.requestId});
     localStorage.removeItem('rimsPendingReturn');returnOperation=null;retryRequired=false;
-    setStatus('✅ '+escapeHtml(r.result.name)+'<br>Заказ '+escapeHtml(r.result.order)+' · '+escapeHtml(r.result.qty)+' шт.<br>'+escapeHtml(r.result.destination)+'<br>Номер заказа отмечен красным.<br><br>Нажмите «Следующий товар».','ok');
+    const result=r.result;
+    const destinationLink=result.targetUrl ? '<br><a style="color:#8acbff" target="_blank" rel="noopener" href="'+escapeHtml(result.targetUrl)+'">Открыть записанную строку '+result.targetRow+'</a>' : '';
+    setStatus('✅ '+escapeHtml(result.name)+'<br>'+(result.order?'Заказ '+escapeHtml(result.order):'Без номера заказа')+' · '+escapeHtml(result.qty)+' шт.<br>'+escapeHtml(result.destination)+destinationLink+'<br>Поднесите следующий товар.','ok');
+    scanArmed=true; pendingBarcode='';
     vibrate([80,60,80]);
   }catch(e){showError(e);el('retryReturn').classList.remove('hidden');el('cancelReturn').classList.remove('hidden');}
   finally{serverBusy=false;}
@@ -2123,7 +2128,7 @@ async function acceptItem(item,barcode){
     const r=await api(item?'accept_ocr':'accept_scan',{
       batchIds:selectedBatches,barcode:barcode||'',articleKey:item?item.articleKey:'',brandKey:item?item.brandKey:''});
     handleResult(r.result);
-  }catch(e){showError(e);}finally{serverBusy=false;}
+  }catch(e){showError(e);}finally{serverBusy=false;if(!retryRequired)scanArmed=true;}
 }
 handleResult=function(r){
   if(r.summary)updateSummary(r.summary);
@@ -2132,23 +2137,41 @@ handleResult=function(r){
     setStatus('Штрихкод неизвестен. Наведите камеру на напечатанный артикул для привязки.','warn');return;
   }
   if(r.type==='accepted'){
+    const matched=exactMatches(r.name||'',acceptCatalog);
+    if(matched.length===1)cameraLastKey='accept:'+matched[0].brandKey+':'+matched[0].articleKey;
     pendingBarcode='';
-    setStatus('✅ '+escapeHtml(r.name)+'<br>Принято '+r.itemAccepted+' из '+r.itemExpected+'<br>'+escapeHtml(r.batch)+'<br>Нажмите «Следующий товар».'+(r.kaspiQueueError?'<br>Ошибка очереди Kaspi: '+escapeHtml(r.kaspiQueueError):''),r.rowComplete?'ok':'warn');
+    setStatus('✅ '+escapeHtml(r.name)+'<br>Принято '+r.itemAccepted+' из '+r.itemExpected+'<br>'+escapeHtml(r.batch)+'<br>Поднесите следующий товар.'+(r.kaspiQueueError?'<br>Ошибка очереди Kaspi: '+escapeHtml(r.kaspiQueueError):''),r.rowComplete?'ok':'warn');
     vibrate([80,60,80]);return;
   }
   setStatus(r.type==='all_green'?'Все единицы этого товара уже приняты.':'Товар не найден в выбранных поставках.','warn');
 };
+// Camera duplicate guard: one operation per visible label; 3 clear OCR frames release it.
+let cameraLastKey='', cameraLastBarcode='', cameraClearFrames=0;
+function cameraMayProcess(key) {
+  if(!key || key===cameraLastKey)return false;
+  cameraLastKey=key; cameraClearFrames=0; return true;
+}
+function cameraObserveEmpty() {
+  cameraClearFrames++;
+  if(cameraClearFrames>=3){cameraLastKey='';cameraLastBarcode='';pendingBarcode='';}
+}
 barcodeFound=async function(code){
-  if(!scanArmed||serverBusy||ocrBusy||retryRequired||Date.now()<cooldownUntil)return;
-  if(code===pendingBarcode)return;
-  if(scanMode==='returns'){
-    if(el('scanKind').value==='order')await findReturn('',code,'');
-    else{
+  if(!scanArmed||serverBusy||ocrBusy||retryRequired)return;
+  if(code===cameraLastBarcode)return;
+  if(scanMode==='returns') {
+    if(el('scanKind').value==='order') {
+      if(cameraMayProcess('order:'+code)){cameraLastBarcode=code;await findReturn('',code,'');}
+    }else{
       const matches=exactMatches(code,returnCatalog);
-      if(matches.length===1)await findReturn(matches[0].article,el('orderFilter').value.trim(),matches[0].brandKey);
-      // Unknown EAN is not an article: keep waiting for printed article OCR.
+      if(matches.length===1){const m=matches[0];
+        if(cameraMayProcess('returns:'+m.brandKey+':'+m.articleKey)){
+          cameraLastBarcode=code;await findReturn(m.article,el('orderFilter').value.trim(),m.brandKey);
+        }
+      }
     }
-  }else await acceptItem(null,code);
+  }else{
+    cameraLastBarcode=code;await acceptItem(null,code);
+  }
 };
 runOcr=async function(forced){
   if(!ocrReady||ocrBusy||serverBusy||!scanArmed||retryRequired)return;
@@ -2161,13 +2184,22 @@ runOcr=async function(forced){
     const text=result.data.text||'';
     if(scanMode==='returns'&&el('scanKind').value==='order'){
       const numbers=[...new Set(text.match(/\b\d{9,12}\b/g)||[])];
-      if(numbers.length===1)action=()=>findReturn('',numbers[0],'');
+      if(numbers.length===1){
+        cameraClearFrames=0;
+        if(cameraMayProcess('order:'+numbers[0]))action=()=>findReturn('',numbers[0],'');
+      }else if(!text.trim())cameraObserveEmpty();else cameraClearFrames=0;
     }else{
       const matches=exactMatches(text,catalog);
-      if(matches.length===1){const m=matches[0];action=()=>scanMode==='returns'?findReturn(m.article,el('orderFilter').value.trim(),m.brandKey):acceptItem(m,pendingBarcode);}
-      else if(matches.length>1){setStatus('В кадре несколько товаров. Оставьте одну этикетку или введите артикул вручную.','warn');}
+      if(matches.length===1){
+        cameraClearFrames=0;
+        const m=matches[0], key=scanMode+':'+m.brandKey+':'+m.articleKey;
+        if(cameraMayProcess(key))action=()=>scanMode==='returns'?findReturn(m.article,el('orderFilter').value.trim(),m.brandKey):acceptItem(m,'');
+      }else if(matches.length>1){
+        cameraClearFrames=0;
+        setStatus('В кадре несколько товаров. Оставьте одну этикетку.','warn');
+      }else if(!text.trim())cameraObserveEmpty();else cameraClearFrames=0;
     }
-    if(!action&&forced)setStatus('Не удалось однозначно прочитать код. Можно ввести его вручную.','warn');
+    if(!action&&forced)setStatus('Для повторного такого же артикула уберите этикетку из кадра на 6 секунд или используйте ручной ввод.','warn');
   }catch(e){showError(e);}finally{ocrBusy=false;}
   if(action)await action();
 };
