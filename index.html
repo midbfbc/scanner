@@ -408,7 +408,7 @@ button {
   <button
     id="ocrButton"
     class="gray hidden"
-    onclick="runOcr(true)"
+    id="recognizeArticleButton" onclick="recognizeArticleNow()"
   >
     🔍 РАСПОЗНАТЬ АРТИКУЛ
   </button>
@@ -2156,8 +2156,9 @@ function confirmCameraRead(key,confidence){
   return stableCameraCount>=1;
 }
 runOcr=async function(forced){
-  if(document.hidden || manualBusy || (document.activeElement===el('manualCode') && el('manualCode').value.trim()) || !ocrReady||ocrBusy||serverBusy||!scanArmed||retryRequired)return;
-  const frame=getFrame();if(!frame)return;
+  if(forceRecognitionBusy && !forced)return;
+  if(document.hidden || manualBusy || (!forced && document.activeElement===el('manualCode') && el('manualCode').value.trim()) || !ocrReady||ocrBusy||serverBusy||!scanArmed||retryRequired)return;
+  const frame=getFrame();if(!frame){if(forced)setStatus('Камера ещё не готова. Включите её и повторите.','warn');return;}
   const epoch=modeEpoch;ocrBusy=true;
   let action=null;
   try{
@@ -2186,13 +2187,33 @@ runOcr=async function(forced){
         setStatus('В кадре несколько товаров. Оставьте одну этикетку.','warn');
       }else if(!text.trim()){confirmCameraRead('',0);cameraObserveEmpty();}else {confirmCameraRead('',0);cameraClearFrames=0;cameraClearSince=0;showReadout(text,scanMode==='accept'?'Текст прочитан, но совпадения в выбранных поставках нет. Проверьте даты поставок и артикул.':'Текст прочитан, но точного совпадения в каталоге нет. Можно ввести артикул вручную.');}
     }
-    if(!action&&forced)setStatus('Для повторного такого же артикула уберите этикетку из кадра на 6 секунд или используйте ручной ввод.','warn');
+    if(!action&&forced)setStatus('Не удалось однозначно распознать артикул. Наведите камеру на одну этикетку и нажмите ещё раз.','warn');
   }catch(e){showError(e);}finally{ocrBusy=false;}
   if(action)await action();
 };
+let forceRecognitionBusy=false;
+async function recognizeArticleNow(){
+  if(forceRecognitionBusy)return;
+  if(serverBusy||manualBusy){setStatus('Дождитесь завершения добавления текущего товара.','warn');return;}
+  if(retryRequired){setStatus('Сначала завершите незавершённый возврат.','warn');return;}
+  if(scanMode==='accept'&&!selectedBatches){setStatus('Сначала выберите магазин, дату и начните приёмку.','warn');return;}
+  if(scanMode==='returns'&&!returnSheetId){setStatus('Сначала выберите лист отчёта.','warn');return;}
+  if(!ocrReady){setStatus('Распознавание ещё загружается. Повторите через несколько секунд.','warn');return;}
+  forceRecognitionBusy=true;modeEpoch++;
+  const button=el('recognizeArticleButton');button.disabled=true;
+  setStatus('Распознаю артикул следующего товара…','search');
+  try{
+    const deadline=Date.now()+15000;
+    while(ocrBusy && Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,100));
+    if(ocrBusy){setStatus('Камера ещё обрабатывает кадр. Нажмите снова через несколько секунд.','warn');return;}
+    cameraLastKey='';cameraLastBarcode='';cameraClearFrames=0;cameraClearSince=0;
+    stableCameraKey='';stableCameraCount=0;pendingBarcode='';scanArmed=true;
+    await runOcr(true);
+  }catch(e){showError(e);}finally{forceRecognitionBusy=false;button.disabled=false;}
+}
 let manualBusy=false;
 async function manualScan(){
-  if(manualBusy)return;
+  if(manualBusy||forceRecognitionBusy)return;
   if(retryRequired){setStatus('Сначала завершите незавершённый возврат кнопкой повтора или отмены.','warn');return;}
   if(serverBusy){setStatus('Предыдущая операция ещё выполняется. Дождитесь результата и нажмите «Добавить».','warn');return;}
   const input=el('manualCode'), text=input.value.trim();
