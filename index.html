@@ -2153,7 +2153,7 @@ function confirmCameraRead(key,confidence){
   if(!key){stableCameraKey='';stableCameraCount=0;return false;}
   if(stableCameraEpoch!==modeEpoch || key!==stableCameraKey){stableCameraKey=key;stableCameraCount=1;stableCameraEpoch=modeEpoch;}
   else stableCameraCount++;
-  return stableCameraCount>=3;
+  return stableCameraCount>=1;
 }
 runOcr=async function(forced){
   if(document.hidden || manualBusy || (document.activeElement===el('manualCode') && el('manualCode').value.trim()) || !ocrReady||ocrBusy||serverBusy||!scanArmed||retryRequired)return;
