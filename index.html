@@ -2144,13 +2144,39 @@ async function cancelReturn(){
     setStatus('Незаписанная операция отменена. Можно отсканировать товар заново.','search');
   }catch(e){showError(e);}finally{serverBusy=false;}
 }
+function askAcceptQuantity(info){
+  return new Promise(resolve=>{
+    const dialog=document.createElement('dialog');
+    dialog.style.cssText='background:#182334;color:white;border:1px solid #55708c;border-radius:14px;max-width:360px;width:85%;padding:20px';
+    dialog.innerHTML='<form><b>Количество для приёмки</b><p class="itemName"></p><p class="remaining"></p><label>Сколько штук принимаете?<input type="number" inputmode="numeric" min="1" step="1" value="1" required style="box-sizing:border-box;width:100%;padding:12px;margin:12px 0"></label><button type="submit" class="blue">Принять</button><button type="button" class="gray cancel" style="margin-top:8px">Отмена</button></form>';
+    dialog.querySelector('.itemName').textContent=info.name;
+    dialog.querySelector('.remaining').textContent='Принято '+info.itemAccepted+' из '+info.itemExpected+'. Осталось '+info.itemRemaining+' шт.';
+    const input=dialog.querySelector('input');input.max=String(info.itemRemaining);
+    let settled=false;
+    const finish=value=>{if(settled)return;settled=true;dialog.close();dialog.remove();resolve(value);};
+    dialog.querySelector('form').onsubmit=e=>{e.preventDefault();const qty=Number(input.value);if(!Number.isSafeInteger(qty)||qty<1||qty>info.itemRemaining){input.setCustomValidity('Укажите от 1 до '+info.itemRemaining);input.reportValidity();return;}finish(qty);};
+    input.oninput=()=>input.setCustomValidity('');
+    dialog.querySelector('.cancel').onclick=()=>finish(null);
+    dialog.addEventListener('cancel',e=>{e.preventDefault();finish(null);});
+    document.body.append(dialog);dialog.showModal();input.focus();input.select();
+  });
+}
 async function acceptItem(item,barcode){
-  if(serverBusy||!selectedBatches||retryRequired)return;
+  if(serverBusy||!selectedBatches||retryRequired)return false;
   serverBusy=true;scanArmed=false;
-  setStatus(item ? 'Распознан артикул <b>'+escapeHtml(item.article)+'</b><br>Добавляю в приёмку…' : 'Считан штрихкод '+escapeHtml(barcode)+'<br>Ищу товар и добавляю в приёмку…','search');
+  setStatus('Распознан артикул <b>'+escapeHtml(item.article)+'</b><br>Проверяю оставшееся количество…','search');
   try{
-    const r=await api(item?'accept_ocr':'accept_scan',{
-      batchIds:selectedBatches,barcode:barcode||'',articleKey:item?item.articleKey:'',brandKey:item?item.brandKey:''});
+    const params={batchIds:selectedBatches,barcode:barcode||'',articleKey:item.articleKey,brandKey:item.brandKey};
+    const response=await api('accept_preview',params), info=response.result;
+    if(!info || info.type!=='preview'){
+      if(info && info.type==='not_found'){handleResult(info);return false;}
+      throw new Error('Обновите Apps Script кодом SCANNER_ACCEPT_QUANTITY и опубликуйте новую версию.');
+    }
+    if(info.itemRemaining<1){handleResult({type:'all_green'});return false;}
+    const quantity=info.itemRemaining>1?await askAcceptQuantity(info):1;
+    if(quantity===null){cameraLastKey='';setStatus('Приёмка отменена. Ничего не добавлено.','search');return false;}
+    setStatus('Добавляю '+escapeHtml(item.article)+' · '+quantity+' шт.…','search');
+    const r=await api('accept_ocr',{...params,quantity});
     handleResult(r.result);
     return r.result.type==='accepted';
   }catch(e){showError(e);return false;}finally{serverBusy=false;if(!retryRequired)scanArmed=true;}
@@ -2165,7 +2191,7 @@ handleResult=function(r){
     const matched=exactMatches(r.name||'',acceptCatalog);
     if(matched.length===1)cameraLastKey='accept:'+matched[0].brandKey+':'+matched[0].articleKey;
     pendingBarcode='';
-    setStatus('✅ '+escapeHtml(r.name)+'<br>Принято '+r.itemAccepted+' из '+r.itemExpected+'<br>'+escapeHtml(r.batch)+'<br>Поднесите следующий товар.'+(r.kaspiQueueError?'<br>Ошибка очереди Kaspi: '+escapeHtml(r.kaspiQueueError):''),r.rowComplete?'ok':'warn');
+    setStatus('✅ '+escapeHtml(r.name)+'<br>Добавлено '+(r.addedQuantity||1)+' шт.<br>Принято '+r.itemAccepted+' из '+r.itemExpected+'<br>'+escapeHtml(r.batch)+'<br>Поднесите следующий товар.'+(r.kaspiQueueError?'<br>Ошибка очереди Kaspi: '+escapeHtml(r.kaspiQueueError):''),r.rowComplete?'ok':'warn');
     vibrate([80,60,80]);return;
   }
   setStatus(r.type==='all_green'?'Все единицы этого товара уже приняты.':'Товар не найден в выбранных поставках.','warn');
