@@ -1900,26 +1900,21 @@ controls.innerHTML=`
   <button class="gray" onclick="toggleTorch()" style="margin-top:8px">Фонарик</button>
   <div id="returnChoices"></div>`;
 el('app').prepend(controls);
-const readout=document.createElement('div');
-readout.className='small';readout.style.cssText='padding:10px;white-space:pre-wrap;overflow-wrap:anywhere';
-readout.textContent='Камера: ожидаю распознавание.';
-controls.appendChild(readout);
-function showReadout(text,message){
-  readout.textContent=message+(text?'\nПрочитано: '+text.replace(/\s+/g,' ').trim().slice(0,180):'');
-}
+// OCR diagnostic text is intentionally not rendered.
+function showReadout(text,message) {}
 
 const extraStyle=document.createElement('style');
 extraStyle.textContent='select{max-width:100%;padding:10px;background:#182334;color:white;border:1px solid #45516a;border-radius:8px;margin:6px 0}#batchChoices label{display:block;padding:8px}#batchChoices input{width:auto;margin-right:8px}#orderFilter,#manualCode{box-sizing:border-box;padding:12px}button:disabled{opacity:.45}';
 document.head.append(extraStyle);
 el('manualCode').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();manualScan();}});
-el('manualCode').addEventListener('focus',()=>{modeEpoch++;showReadout('','Ручной ввод: камера на паузе. Нажмите «Добавить» или коснитесь области камеры.');});
+el('manualCode').addEventListener('focus',()=>{modeEpoch++;});
 el('scanKind').addEventListener('change',()=>{
   scanArmed=false; el('manualCode').placeholder=el('scanKind').value==='order'?'Номер заказа':'Артикул или наименование';
   setStatus('Нажмите «Следующий товар», чтобы начать сканирование.','search');
 });
 // Replace outdated description from the supplied HTML.
 const info=el('app').lastElementChild;
-if(info && info.querySelector('.small')) info.querySelector('.small').textContent='Камера читает штрихкод и напечатанный артикул. После успешной обработки нажмите «Следующий товар». Ручной ввод доступен всегда.';
+if(info && info.querySelector('.small')) info.querySelector('.small').textContent='Наведите камеру на напечатанный артикул. Результат появится в нижнем блоке. Ручной ввод доступен всегда.';
 
 initApp=function(data) {
   el('login').classList.add('hidden'); el('app').classList.remove('hidden');
@@ -2033,7 +2028,7 @@ initOcr=async function(){
     ocrReady=true;
     if(scanArmed&&!serverBusy)setStatus('Камера готова. Держите все строки артикула в кадре.','search');
     setInterval(()=>runOcr(false),300);
-  }catch(e){ocrWorker=null;setStatus('OCR не загрузился. Доступны штрихкод и ручной ввод.','warn');}
+  }catch(e){ocrWorker=null;setStatus('Распознавание текста не загрузилось. Используйте ручной ввод или обновите страницу.','warn');}
 };
 startCamera=async function(){
   if(cameraStarted||cameraStarting)return;
@@ -2151,33 +2146,17 @@ function cameraObserveEmpty() {
   if(!cameraClearSince)cameraClearSince=Date.now();
   if(cameraClearFrames>=3 && Date.now()-cameraClearSince>=5000){cameraLastKey='';cameraLastBarcode='';pendingBarcode='';}
 }
-barcodeFound=async function(code){
-  if(manualBusy || document.activeElement===el('manualCode') || !scanArmed||serverBusy||ocrBusy||retryRequired)return;
-  if(code===cameraLastBarcode)return;
-  if(scanMode==='returns') {
-    if(el('scanKind').value==='order') {
-      if(cameraMayProcess('order:'+code)){cameraLastBarcode=code;await findReturn('',code,'');}
-    }else{
-      const matches=exactMatches(code,returnCatalog);
-      if(matches.length===1){const m=matches[0];
-        if(cameraMayProcess('returns:'+m.brandKey+':'+m.articleKey)){
-          cameraLastBarcode=code;await findReturn(m.article,el('orderFilter').value.trim(),m.brandKey);
-        }
-      }
-    }
-  }else{
-    cameraLastBarcode=code;await acceptItem(null,code);
-  }
-};
+// The camera searches printed articles only; barcode events never submit products.
+barcodeFound=async function(code){};
 let stableCameraKey='',stableCameraCount=0,stableCameraEpoch=-1;
 function confirmCameraRead(key,confidence){
-  if(!key || !Number.isFinite(confidence) || confidence<75){stableCameraKey='';stableCameraCount=0;return false;}
+  if(!key){stableCameraKey='';stableCameraCount=0;return false;}
   if(stableCameraEpoch!==modeEpoch || key!==stableCameraKey){stableCameraKey=key;stableCameraCount=1;stableCameraEpoch=modeEpoch;}
   else stableCameraCount++;
   return stableCameraCount>=3;
 }
 runOcr=async function(forced){
-  if(document.hidden || manualBusy || document.activeElement===el('manualCode') || !ocrReady||ocrBusy||serverBusy||!scanArmed||retryRequired)return;
+  if(document.hidden || manualBusy || (document.activeElement===el('manualCode') && el('manualCode').value.trim()) || !ocrReady||ocrBusy||serverBusy||!scanArmed||retryRequired)return;
   const frame=getFrame();if(!frame)return;
   const epoch=modeEpoch;ocrBusy=true;
   let action=null;
@@ -2198,9 +2177,9 @@ runOcr=async function(forced){
         cameraClearFrames=0;cameraClearSince=0;
         const m=matches[0], key=scanMode+':'+m.brandKey+':'+m.articleKey;
         if(confirmCameraRead(key,Number(result.data.confidence)) && cameraMayProcess(key)){
-          showReadout(text,'Найден артикул: '+m.article);
-          action=()=>scanMode==='returns'?findReturn(m.article,el('orderFilter').value.trim(),m.brandKey):acceptItem(m,pendingBarcode);
-        }else showReadout(text,key===cameraLastKey?'Этот артикул уже обработан: '+m.article+'. Для ещё одной детали уберите этикетку из кадра или используйте ручной ввод.':'Проверяю артикул '+m.article+': '+stableCameraCount+'/3 кадров. Держите этикетку неподвижно.');
+          setStatus('Распознан артикул <b>'+escapeHtml(m.article)+'</b><br>Добавляю…','search');
+          action=()=>scanMode==='returns'?findReturn(m.article,el('orderFilter').value.trim(),m.brandKey):acceptItem(m,'');
+        }else if(key!==cameraLastKey)setStatus('Распознан артикул <b>'+escapeHtml(m.article)+'</b><br>Проверяю: '+stableCameraCount+'/3 кадров…','search');
       }else if(matches.length>1){
         confirmCameraRead('',0);
         cameraClearFrames=0;cameraClearSince=0;
@@ -2235,7 +2214,7 @@ async function manualScan(){
       if(!selectedBatches){setStatus('Выберите магазин и дату, затем нажмите «Начать приёмку».','warn');return;}
       const m=exactMatches(text,acceptCatalog);
       if(m.length!==1){setStatus('Укажите артикул и бренд из выбранной поставки.','warn');return;}
-      await acceptItem(m[0],pendingBarcode);
+      await acceptItem(m[0],'');
     }
   }catch(e){showError(e);}
   finally{
