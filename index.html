@@ -1897,11 +1897,19 @@ controls.innerHTML=`
   <button class="gray" onclick="toggleTorch()" style="margin-top:8px">Фонарик</button>
   <div id="returnChoices"></div>`;
 el('app').prepend(controls);
+const readout=document.createElement('div');
+readout.className='small';readout.style.cssText='padding:10px;white-space:pre-wrap;overflow-wrap:anywhere';
+readout.textContent='Камера: ожидаю распознавание.';
+controls.appendChild(readout);
+function showReadout(text,message){
+  readout.textContent=message+(text?'\nПрочитано: '+text.replace(/\s+/g,' ').trim().slice(0,180):'');
+}
+
 const extraStyle=document.createElement('style');
 extraStyle.textContent='select{max-width:100%;padding:10px;background:#182334;color:white;border:1px solid #45516a;border-radius:8px;margin:6px 0}#batchChoices label{display:block;padding:8px}#batchChoices input{width:auto;margin-right:8px}#orderFilter,#manualCode{box-sizing:border-box;padding:12px}button:disabled{opacity:.45}';
 document.head.append(extraStyle);
 el('manualCode').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();manualScan();}});
-el('manualCode').addEventListener('focus',()=>{modeEpoch++;});
+el('manualCode').addEventListener('focus',()=>{modeEpoch++;showReadout('','Ручной ввод: камера на паузе. Нажмите «Добавить» или коснитесь области камеры.');});
 el('scanKind').addEventListener('change',()=>{
   scanArmed=false; el('manualCode').placeholder=el('scanKind').value==='order'?'Номер заказа':'Артикул или наименование';
   setStatus('Нажмите «Следующий товар», чтобы начать сканирование.','search');
@@ -2070,6 +2078,7 @@ async function cancelReturn(){
 async function acceptItem(item,barcode){
   if(serverBusy||!selectedBatches||retryRequired)return;
   serverBusy=true;scanArmed=false;
+  setStatus(item ? 'Распознан артикул <b>'+escapeHtml(item.article)+'</b><br>Добавляю в приёмку…' : 'Считан штрихкод '+escapeHtml(barcode)+'<br>Ищу товар и добавляю в приёмку…','search');
   try{
     const r=await api(item?'accept_ocr':'accept_scan',{
       batchIds:selectedBatches,barcode:barcode||'',articleKey:item?item.articleKey:'',brandKey:item?item.brandKey:''});
@@ -2129,6 +2138,7 @@ runOcr=async function(forced){
     const result=await ocrWorker.recognize(frame);
     if(epoch!==modeEpoch||!scanArmed)return;
     const text=result.data.text||'';
+    showReadout(text,text.trim()?'Читаю этикетку…':'Текст пока не читается. Поднесите этикетку ближе и дождитесь фокусировки.');
     if(scanMode==='returns'&&el('scanKind').value==='order'){
       const numbers=[...new Set(text.match(/\b\d{9,12}\b/g)||[])];
       if(numbers.length===1){
@@ -2140,11 +2150,14 @@ runOcr=async function(forced){
       if(matches.length===1){
         cameraClearFrames=0;cameraClearSince=0;
         const m=matches[0], key=scanMode+':'+m.brandKey+':'+m.articleKey;
-        if(cameraMayProcess(key))action=()=>scanMode==='returns'?findReturn(m.article,el('orderFilter').value.trim(),m.brandKey):acceptItem(m,'');
+        if(cameraMayProcess(key)){
+          showReadout(text,'Найден артикул: '+m.article);
+          action=()=>scanMode==='returns'?findReturn(m.article,el('orderFilter').value.trim(),m.brandKey):acceptItem(m,pendingBarcode);
+        }else showReadout(text,'Этот артикул уже обработан: '+m.article+'. Для ещё одной такой детали уберите этикетку на 6 секунд или введите артикул вручную.');
       }else if(matches.length>1){
         cameraClearFrames=0;cameraClearSince=0;
         setStatus('В кадре несколько товаров. Оставьте одну этикетку.','warn');
-      }else if(!text.trim())cameraObserveEmpty();else {cameraClearFrames=0;cameraClearSince=0;}
+      }else if(!text.trim())cameraObserveEmpty();else {cameraClearFrames=0;cameraClearSince=0;showReadout(text,scanMode==='accept'?'Текст прочитан, но совпадения в выбранных поставках нет. Проверьте даты поставок и артикул.':'Текст прочитан, но точного совпадения в каталоге нет. Можно ввести артикул вручную.');}
     }
     if(!action&&forced)setStatus('Для повторного такого же артикула уберите этикетку из кадра на 6 секунд или используйте ручной ввод.','warn');
   }catch(e){showError(e);}finally{ocrBusy=false;}
