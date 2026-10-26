@@ -1909,8 +1909,8 @@ document.head.append(extraStyle);
 el('manualCode').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();manualScan();}});
 el('manualCode').addEventListener('focus',()=>{modeEpoch++;});
 el('scanKind').addEventListener('change',()=>{
-  scanArmed=false; el('manualCode').placeholder=el('scanKind').value==='order'?'Номер заказа':'Артикул или наименование';
-  setStatus('Нажмите «Следующий товар», чтобы начать сканирование.','search');
+  modeEpoch++;scanArmed=!!returnSheetId; el('manualCode').placeholder=el('scanKind').value==='order'?'Номер заказа':'Артикул или наименование';
+  setStatus('Можно сканировать или ввести значение и нажать «Добавить».','search');
 });
 // Replace outdated description from the supplied HTML.
 const info=el('app').lastElementChild;
@@ -2024,7 +2024,7 @@ initOcr=async function(){
   if(ocrReady||ocrWorker)return;
   try{
     ocrWorker=await Tesseract.createWorker('eng');
-    await ocrWorker.setParameters({tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-./ ',preserve_interword_spaces:'1'});
+    await ocrWorker.setParameters({tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-./ ',preserve_interword_spaces:'1',tessedit_pageseg_mode:'11'});
     ocrReady=true;
     if(scanArmed&&!serverBusy)setStatus('Камера готова. Держите все строки артикула в кадре.','search');
     setInterval(()=>runOcr(false),300);
@@ -2042,14 +2042,30 @@ async function toggleTorch(){
     await qr.applyVideoConstraints({advanced:[{torch:!torchOn}]});torchOn=!torchOn;
   }catch(e){setStatus('Фонарик недоступен на этой камере.','warn');}
 }
+function labelKey(value){
+  const lookalikes={'А':'A','В':'B','С':'C','Е':'E','Н':'H','К':'K','М':'M','О':'O','Р':'P','Т':'T','Х':'X','У':'Y'};
+  return normalize(String(value||'').normalize('NFKC').toUpperCase().replace(/[АВСЕНКМОРТХУ]/g,c=>lookalikes[c]));
+}
 function exactMatches(text,items) {
-  const tokens=new Set(getCandidates(text));
-  const full=normalize(text);
-  let matches=items.filter(i=>tokens.has(normalize(i.article)) || normalize(i.article)===full || normalize(i.name)===full);
-  const branded=matches.filter(i=>i.brand && tokens.has(normalize(i.brand)));
+  const tokens=new Set(getCandidates(text).map(labelKey)), full=labelKey(text);
+  // Prefer the complete typed article over shorter articles within it.
+  let matches=items.filter(i=>labelKey(i.article)===full || labelKey(i.name)===full);
+  if(!matches.length)matches=items.filter(i=>tokens.has(labelKey(i.article)));
+  const branded=matches.filter(i=>i.brand && tokens.has(labelKey(i.brand)));
   if(branded.length)matches=branded;
-  // Do not guess between brands or articles when several labels are visible.
   return matches.filter((v,i,a)=>a.findIndex(x=>x.articleKey===v.articleKey && x.brandKey===v.brandKey)===i);
+}
+function chooseManualProduct(items){
+  return new Promise(resolve=>{
+    const dialog=document.createElement('dialog');
+    dialog.style.cssText='background:#182334;color:white;max-width:420px;width:85%;border-radius:12px';
+    const title=document.createElement('p');title.textContent='Выберите товар из поставки';dialog.append(title);
+    const finish=value=>{dialog.close();dialog.remove();resolve(value);};
+    items.forEach(item=>{const b=document.createElement('button');b.type='button';b.textContent=item.name||((item.brand||'')+' '+item.article);b.onclick=()=>finish(item);dialog.append(b);});
+    const cancel=document.createElement('button');cancel.textContent='Отмена';cancel.onclick=()=>finish(null);dialog.append(cancel);
+    dialog.addEventListener('cancel',e=>{e.preventDefault();finish(null);});
+    document.body.append(dialog);dialog.showModal();
+  });
 }
 findArticle=function(text){const matches=exactMatches(text,catalog);return matches.length===1?matches[0]:null;};
 function requestId(){return 'ret_'+(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'_'+Math.random().toString(36).slice(2));}
@@ -2136,7 +2152,8 @@ async function acceptItem(item,barcode){
     const r=await api(item?'accept_ocr':'accept_scan',{
       batchIds:selectedBatches,barcode:barcode||'',articleKey:item?item.articleKey:'',brandKey:item?item.brandKey:''});
     handleResult(r.result);
-  }catch(e){showError(e);}finally{serverBusy=false;if(!retryRequired)scanArmed=true;}
+    return r.result.type==='accepted';
+  }catch(e){showError(e);return false;}finally{serverBusy=false;if(!retryRequired)scanArmed=true;}
 }
 handleResult=function(r){
   if(r.summary)updateSummary(r.summary);
@@ -2231,7 +2248,8 @@ async function recognizeArticleNow(){
 }
 let manualBusy=false;
 async function manualScan(){
-  if(manualBusy||forceRecognitionBusy)return;
+  if(manualBusy)return;
+  if(forceRecognitionBusy){setStatus('Дождитесь завершения распознавания и нажмите «Добавить».','warn');return;}
   if(retryRequired){setStatus('Сначала завершите незавершённый возврат кнопкой повтора или отмены.','warn');return;}
   if(serverBusy){setStatus('Предыдущая операция ещё выполняется. Дождитесь результата и нажмите «Добавить».','warn');return;}
   const input=el('manualCode'), text=input.value.trim();
@@ -2251,14 +2269,23 @@ async function manualScan(){
       }
     }else{
       if(!selectedBatches){setStatus('Выберите магазин и дату, затем нажмите «Начать приёмку».','warn');return;}
-      const m=exactMatches(text,acceptCatalog);
-      if(m.length!==1){setStatus('Укажите артикул и бренд из выбранной поставки.','warn');return;}
-      await acceptItem(m[0],'');
+      let m=exactMatches(text,acceptCatalog);
+      if(!m.length){
+        setStatus('Обновляю список выбранной поставки…','search');
+        const response=await api('catalog',{batchIds:selectedBatches});
+        acceptCatalog=response.data.catalog||[];catalog=acceptCatalog;
+        m=exactMatches(text,acceptCatalog);
+      }
+      if(!m.length){setStatus('Артикул «'+escapeHtml(text)+'» не найден в '+escapeHtml(chosenStore)+' за '+escapeHtml(chosenDate)+'. Проверьте дату и написание в отчёте. Ничего не добавлено.','warn');return;}
+      const item=m.length===1?m[0]:await chooseManualProduct(m);
+      if(!item){setStatus('Добавление отменено.','search');return;}
+      const accepted=await acceptItem(item,'');
+      if(accepted){input.value='';input.blur();}
     }
   }catch(e){showError(e);}
   finally{
     manualBusy=false;button.disabled=false;button.textContent='Добавить';
-    if(!retryRequired)scanArmed=wasArmed;
+    if(!retryRequired)scanArmed=scanMode==='accept'?!!selectedBatches:!!returnSheetId;
   }
 }
 
