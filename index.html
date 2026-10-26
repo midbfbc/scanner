@@ -2169,8 +2169,15 @@ barcodeFound=async function(code){
     cameraLastBarcode=code;await acceptItem(null,code);
   }
 };
+let stableCameraKey='',stableCameraCount=0,stableCameraEpoch=-1;
+function confirmCameraRead(key,confidence){
+  if(!key || !Number.isFinite(confidence) || confidence<75){stableCameraKey='';stableCameraCount=0;return false;}
+  if(stableCameraEpoch!==modeEpoch || key!==stableCameraKey){stableCameraKey=key;stableCameraCount=1;stableCameraEpoch=modeEpoch;}
+  else stableCameraCount++;
+  return stableCameraCount>=3;
+}
 runOcr=async function(forced){
-  if(manualBusy || document.activeElement===el('manualCode') || !ocrReady||ocrBusy||serverBusy||!scanArmed||retryRequired)return;
+  if(document.hidden || manualBusy || document.activeElement===el('manualCode') || !ocrReady||ocrBusy||serverBusy||!scanArmed||retryRequired)return;
   const frame=getFrame();if(!frame)return;
   const epoch=modeEpoch;ocrBusy=true;
   let action=null;
@@ -2183,21 +2190,22 @@ runOcr=async function(forced){
       const numbers=[...new Set(text.match(/\b\d{9,12}\b/g)||[])];
       if(numbers.length===1){
         cameraClearFrames=0;cameraClearSince=0;
-        if(cameraMayProcess('order:'+numbers[0]))action=()=>findReturn('',numbers[0],'');
-      }else if(!text.trim())cameraObserveEmpty();else {cameraClearFrames=0;cameraClearSince=0;}
+        if(confirmCameraRead('order:'+numbers[0],Number(result.data.confidence)) && cameraMayProcess('order:'+numbers[0]))action=()=>findReturn('',numbers[0],'');
+      }else if(!text.trim()){confirmCameraRead('',0);cameraObserveEmpty();}else {confirmCameraRead('',0);cameraClearFrames=0;cameraClearSince=0;}
     }else{
       const matches=exactMatches(text,catalog);
       if(matches.length===1){
         cameraClearFrames=0;cameraClearSince=0;
         const m=matches[0], key=scanMode+':'+m.brandKey+':'+m.articleKey;
-        if(cameraMayProcess(key)){
+        if(confirmCameraRead(key,Number(result.data.confidence)) && cameraMayProcess(key)){
           showReadout(text,'Найден артикул: '+m.article);
           action=()=>scanMode==='returns'?findReturn(m.article,el('orderFilter').value.trim(),m.brandKey):acceptItem(m,pendingBarcode);
-        }else showReadout(text,'Этот артикул уже обработан: '+m.article+'. Для ещё одной такой детали уберите этикетку на 6 секунд или введите артикул вручную.');
+        }else showReadout(text,key===cameraLastKey?'Этот артикул уже обработан: '+m.article+'. Для ещё одной детали уберите этикетку из кадра или используйте ручной ввод.':'Проверяю артикул '+m.article+': '+stableCameraCount+'/3 кадров. Держите этикетку неподвижно.');
       }else if(matches.length>1){
+        confirmCameraRead('',0);
         cameraClearFrames=0;cameraClearSince=0;
         setStatus('В кадре несколько товаров. Оставьте одну этикетку.','warn');
-      }else if(!text.trim())cameraObserveEmpty();else {cameraClearFrames=0;cameraClearSince=0;showReadout(text,scanMode==='accept'?'Текст прочитан, но совпадения в выбранных поставках нет. Проверьте даты поставок и артикул.':'Текст прочитан, но точного совпадения в каталоге нет. Можно ввести артикул вручную.');}
+      }else if(!text.trim()){confirmCameraRead('',0);cameraObserveEmpty();}else {confirmCameraRead('',0);cameraClearFrames=0;cameraClearSince=0;showReadout(text,scanMode==='accept'?'Текст прочитан, но совпадения в выбранных поставках нет. Проверьте даты поставок и артикул.':'Текст прочитан, но точного совпадения в каталоге нет. Можно ввести артикул вручную.');}
     }
     if(!action&&forced)setStatus('Для повторного такого же артикула уберите этикетку из кадра на 6 секунд или используйте ручной ввод.','warn');
   }catch(e){showError(e);}finally{ocrBusy=false;}
