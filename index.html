@@ -1,438 +1,481 @@
 <!DOCTYPE html>
 <html lang="ru">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Приёмка РИМС — Rewrite 1</title>
 
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+  name="viewport"
+  content="
+    width=device-width,
+    initial-scale=1,
+    maximum-scale=1,
+    user-scalable=no
+  "
+>
+
+<title>Приёмка товара</title>
+
+
+<script
+  src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js">
+</script>
+
+
+<script
+  src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js">
+</script>
+
 
 <style>
-*{box-sizing:border-box}
-body{
-  margin:0;
-  background:#0f172a;
-  color:#fff;
-  font-family:Arial,sans-serif
-}
-.wrap{
-  max-width:700px;
-  margin:auto;
-  padding:12px
-}
-.card{
-  background:#1e293b;
-  border-radius:15px;
-  padding:14px;
-  margin-bottom:11px
-}
-.title{
-  font-size:22px;
-  font-weight:700;
-  margin-bottom:12px
-}
-.stats{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  text-align:center;
-  gap:8px
-}
-.num{
-  font-size:26px;
-  font-weight:700
-}
-.label{
-  font-size:12px;
-  color:#cbd5e1
-}
-input,select{
-  width:100%;
-  border:0;
-  border-radius:10px;
-  padding:14px;
-  font-size:16px;
-  background:#fff;
-  color:#111827
-}
-select{
-  margin-top:8px
-}
-button{
-  width:100%;
-  border:0;
-  border-radius:10px;
-  padding:14px;
-  font-size:17px;
-  font-weight:700;
-  margin-top:8px
-}
-button:disabled{
-  opacity:.45
-}
-.blue{
-  background:#2563eb;
-  color:#fff
-}
-.gray{
-  background:#475569;
-  color:#fff
-}
-.torch-on{
-  background:#facc15;
-  color:#111827
-}
-.ok{
-  background:#14532d;
-  border:2px solid #22c55e
-}
-.warn{
-  background:#78350f;
-  border:2px solid #f59e0b
-}
-.bad{
-  background:#7f1d1d;
-  border:2px solid #ef4444
-}
-.search{
-  background:#1e3a8a;
-  border:2px solid #3b82f6
-}
-.hidden{
-  display:none!important
-}
-.small{
-  font-size:12px;
-  color:#cbd5e1;
-  line-height:1.5
-}
-.status{
-  min-height:78px;
-  line-height:1.5
-}
-.product{
-  font-size:20px;
-  font-weight:700
-}
-.batch-note{
-  padding:10px;
-  border-radius:10px;
-  background:#0f172a;
-  margin-top:10px;
-  font-size:13px;
-  line-height:1.45
-}
-.date-list{
-  margin-top:10px;
-  display:grid;
-  gap:7px
-}
-.date-row{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding:10px 11px;
-  background:#0f172a;
-  border-radius:10px
-}
-.date-row input{
-  width:auto;
-  margin:0;
-  transform:scale(1.25)
-}
-.date-row-main{
-  flex:1
-}
-.date-row-title{
-  font-weight:700
-}
-.date-row-meta{
-  margin-top:2px;
-  font-size:12px;
-  color:#cbd5e1
-}
-.date-actions{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:8px;
-  margin-top:8px
-}
-.date-actions button{
-  margin-top:0;
-  font-size:14px;
-  padding:11px
+
+* {
+  box-sizing: border-box;
 }
 
-.camera-card{
-  padding:8px
+body {
+
+  margin: 0;
+
+  background:
+    #0f172a;
+
+  color:
+    white;
+
+  font-family:
+    Arial,
+    sans-serif;
 }
-.camera-wrap{
-  position:relative;
-  width:100%;
-  overflow:hidden;
-  border-radius:13px;
-  background:#000
+
+
+.wrap {
+
+  max-width:
+    620px;
+
+  margin:
+    auto;
+
+  padding:
+    14px;
 }
-#video{
-  display:block;
-  width:100%;
-  min-height:260px;
-  object-fit:cover;
-  background:#000
+
+
+.card {
+
+  background:
+    #1e293b;
+
+  border-radius:
+    15px;
+
+  padding:
+    15px;
+
+  margin-bottom:
+    12px;
 }
-#frame{
-  position:absolute;
-  left:3%;
-  top:5%;
-  width:94%;
-  height:90%;
-  border:3px solid #3b82f6;
-  border-radius:12px;
-  pointer-events:none;
-  box-shadow:0 0 0 9999px rgba(0,0,0,.08)
+
+
+.title {
+
+  font-size:
+    22px;
+
+  font-weight:
+    bold;
+
+  margin-bottom:
+    12px;
 }
-#frame::before{
-  content:"ЭТИКЕТКА ЦЕЛИКОМ";
-  position:absolute;
-  top:8px;
-  left:50%;
-  transform:translateX(-50%);
-  background:#2563eb;
-  padding:5px 10px;
-  border-radius:7px;
-  font-size:12px;
-  font-weight:700;
-  white-space:nowrap
+
+
+.stats {
+
+  display:
+    grid;
+
+  grid-template-columns:
+    repeat(3, 1fr);
+
+  text-align:
+    center;
+
+  gap:
+    8px;
 }
-#ocrBadge{
-  position:absolute;
-  right:8px;
-  bottom:8px;
-  background:rgba(15,23,42,.88);
-  padding:5px 8px;
-  border-radius:7px;
-  font-size:11px;
-  color:#dbeafe
+
+
+.num {
+
+  font-size:
+    26px;
+
+  font-weight:
+    bold;
 }
-#seen{
-  margin-top:8px;
-  padding:5px 4px 2px;
-  color:#94a3b8;
-  font-size:11px;
-  line-height:1.35;
-  word-break:break-word
+
+
+.label {
+
+  font-size:
+    12px;
+
+  color:
+    #cbd5e1;
 }
+
+
+input {
+
+  width:
+    100%;
+
+  border:
+    0;
+
+  border-radius:
+    10px;
+
+  padding:
+    15px;
+
+  font-size:
+    18px;
+}
+
+
+button {
+
+  width:
+    100%;
+
+  border:
+    0;
+
+  border-radius:
+    10px;
+
+  padding:
+    15px;
+
+  font-size:
+    17px;
+
+  font-weight:
+    bold;
+
+  margin-top:
+    9px;
+}
+
+
+.blue {
+
+  background:
+    #2563eb;
+
+  color:
+    white;
+}
+
+
+.gray {
+
+  background:
+    #475569;
+
+  color:
+    white;
+}
+
+
+.ok {
+
+  background:
+    #14532d;
+
+  border:
+    2px solid
+    #22c55e;
+}
+
+
+.warn {
+
+  background:
+    #78350f;
+
+  border:
+    2px solid
+    #f59e0b;
+}
+
+
+.bad {
+
+  background:
+    #7f1d1d;
+
+  border:
+    2px solid
+    #ef4444;
+}
+
+
+.search {
+
+  background:
+    #1e3a8a;
+
+  border:
+    2px solid
+    #3b82f6;
+}
+
+
+#reader {
+
+  width:
+    100%;
+
+  background:
+    black;
+
+  border-radius:
+    12px;
+
+  overflow:
+    hidden;
+}
+
+
+.status {
+
+  min-height:
+    85px;
+
+  line-height:
+    1.5;
+}
+
+
+.hidden {
+
+  display:
+    none;
+}
+
+
+.small {
+
+  font-size:
+    12px;
+
+  color:
+    #cbd5e1;
+
+  line-height:
+    1.5;
+}
+
 </style>
+
 </head>
 
+
 <body>
+
+
 <div class="wrap">
 
-<div id="login" class="card">
-  <div class="title">📦 Приёмка РИМС</div>
-  <div class="small">PIN</div>
+
+<div
+  id="login"
+  class="card"
+>
+
+  <div class="title">
+    📦 Приёмка товара
+  </div>
+
+  <div class="small">
+    Введи PIN из Code.gs
+  </div>
+
   <input
     id="pin"
     type="password"
     inputmode="numeric"
     placeholder="PIN"
   >
+
   <button
     class="blue"
     onclick="login()"
   >
     ВОЙТИ
   </button>
+
 </div>
 
 
-<div id="app" class="hidden">
+<div
+  id="app"
+  class="hidden"
+>
 
-  <div class="card">
-    <div class="title">
-      Выбери магазин и даты
-    </div>
 
-    <div
-      id="sheetName"
-      class="small"
-    ></div>
+<div class="card">
 
-    <select
-      id="storeSelect"
-      onchange="renderDates()"
-    >
-      <option value="">
-        — магазин —
-      </option>
-    </select>
+  <div
+    id="shipment"
+    class="title"
+  >
+    📦 Приёмка
+  </div>
 
-    <div
-      id="dateChoices"
-      class="date-list"
-    ></div>
 
-    <div
-      id="dateActions"
-      class="date-actions hidden"
-    >
-      <button
-        class="gray"
-        onclick="toggleAllDates(true)"
+  <div class="stats">
+
+
+    <div>
+
+      <div
+        id="accepted"
+        class="num"
       >
-        ВЫБРАТЬ ВСЕ
-      </button>
+        0
+      </div>
 
-      <button
-        class="gray"
-        onclick="toggleAllDates(false)"
+      <div class="label">
+        принято
+      </div>
+
+    </div>
+
+
+    <div>
+
+      <div
+        id="expected"
+        class="num"
       >
-        СНЯТЬ ВСЕ
-      </button>
-    </div>
-
-    <button
-      id="loadBtn"
-      class="blue hidden"
-      onclick="loadSelection()"
-    >
-      ЗАГРУЗИТЬ ВЫБРАННЫЕ ДАТЫ
-    </button>
-
-    <div
-      id="batchInfo"
-      class="batch-note hidden"
-    ></div>
-  </div>
-
-
-  <div
-    id="statsCard"
-    class="card hidden"
-  >
-    <div
-      id="shipment"
-      class="title"
-    >
-      📦 Приёмка
-    </div>
-
-    <div class="stats">
-      <div>
-        <div
-          id="accepted"
-          class="num"
-        >
-          0
-        </div>
-        <div class="label">
-          принято
-        </div>
+        0
       </div>
 
-      <div>
-        <div
-          id="expected"
-          class="num"
-        >
-          0
-        </div>
-        <div class="label">
-          ожидается
-        </div>
+      <div class="label">
+        ожидается
       </div>
 
-      <div>
-        <div
-          id="remaining"
-          class="num"
-        >
-          0
-        </div>
-        <div class="label">
-          осталось
-        </div>
+    </div>
+
+
+    <div>
+
+      <div
+        id="remaining"
+        class="num"
+      >
+        0
       </div>
-    </div>
-  </div>
 
-
-  <div class="card">
-    <button
-      id="startBtn"
-      class="blue"
-      onclick="startScanner()"
-      disabled
-    >
-      📷 ЗАПУСТИТЬ СКАНЕР
-    </button>
-  </div>
-
-
-  <div
-    id="cameraCard"
-    class="card camera-card hidden"
-  >
-    <div class="camera-wrap">
-      <video
-        id="video"
-        autoplay
-        muted
-        playsinline
-      ></video>
-
-      <div id="frame"></div>
-
-      <div id="ocrBadge">
-        OCR: запуск…
+      <div class="label">
+        осталось
       </div>
+
     </div>
 
-    <button
-      id="torchBtn"
-      class="gray hidden"
-      onclick="toggleTorch()"
-    >
-      🔦 ВКЛЮЧИТЬ ФОНАРИК
-    </button>
 
-    <div id="seen">
-      Наведи всю наклейку в кадр.
-    </div>
-  </div>
-
-
-  <div
-    id="statusCard"
-    class="card search"
-  >
-    <div
-      id="status"
-      class="status"
-    >
-      Сначала выбери магазин и даты.
-    </div>
-  </div>
-
-
-  <div class="card">
-    <div class="small">
-      <b>REWRITE 1.</b>
-      Статус товара определяет только реальная ячейка E в «Отчет РИМС».
-      Белая E = 0, жёлтая = частично, ярко-зелёная = полностью.
-      Старая логика и старые счётчики прошлых версий не используются.
-    </div>
   </div>
 
 </div>
+
+
+<div class="card">
+
+  <button
+    id="start"
+    class="blue"
+    onclick="startCamera()"
+  >
+    📷 ЗАПУСТИТЬ КАМЕРУ
+  </button>
+
+
+  <button
+    id="ocrButton"
+    class="gray hidden"
+    onclick="runOcr(true)"
+  >
+    🔍 РАСПОЗНАТЬ АРТИКУЛ
+  </button>
+
 </div>
+
+
+<div
+  id="camera"
+  class="card hidden"
+>
+
+  <div id="reader"></div>
+
+</div>
+
+
+<div
+  id="statusCard"
+  class="card search"
+>
+
+  <div
+    id="status"
+    class="status"
+  >
+
+    Нажми «Запустить камеру»
+
+  </div>
+
+</div>
+
+
+<div class="card">
+
+  <div class="small">
+
+    Камера ищет одновременно:
+
+    <br>
+    • EAN / штрихкод
+
+    <br>
+    • напечатанный артикул
+
+    <br><br>
+
+    Неизвестный EAN автоматически
+    привяжется к найденному артикулу.
+
+  </div>
+
+</div>
+
+
+</div>
+
+</div>
+
 
 
 <script>
+
+
 const API =
 'https://script.google.com/macros/s/AKfycby83Hxy4yg9Gtv5UaObBTqHJ4fu_9Vy5Fwuc-E6Hy9tKV09Q9z2MUpkanFRYNsI_J8r/exec';
-
-const REQUIRED_BACKEND =
-'REWRITE_1_KASPI_R2_SEPARATE';
 
 
 let accessPin =
@@ -441,205 +484,108 @@ let accessPin =
   ) || '';
 
 
-let batches = [];
-let selectedStore = '';
-let selectedBatchIds = [];
-let catalog = [];
+let catalog =
+  [];
 
 
-let stream = null;
-let track = null;
-
-let torchSupported = false;
-let torchOn = false;
+let qr =
+  null;
 
 
-let worker = null;
-let ocrReady = false;
-let ocrBusy = false;
-let serverBusy = false;
-
-let pass = 0;
+let cameraStarted =
+  false;
 
 
-/*
- * Защита от двойного считывания
- * одной и той же физической коробки.
- */
-let blockedArticleKey = '';
-let blockedClearFrames = 0;
+let ocrWorker =
+  null;
 
 
-/*
- * Для нечёткого OCR совпадения.
- */
-let candidateKey = '';
-let candidateHits = 0;
-let candidateAt = 0;
+let ocrReady =
+  false;
 
 
-/*
- * "Нет в списке" только после
- * нескольких нормальных OCR-кадров.
- */
-let notFoundHits = 0;
+let ocrBusy =
+  false;
 
 
-/* ============================================================
-   API
-============================================================ */
-
-function api(
-  action,
-  params = {}
-) {
-  return new Promise(
-    function(
-      resolve,
-      reject
-    ) {
-      const callback =
-        '__rewrite_cb_' +
-        Date.now() +
-        '_' +
-        Math.random()
-          .toString(36)
-          .slice(2);
+let serverBusy =
+  false;
 
 
-      const script =
-        document
-          .createElement(
-            'script'
-          );
+let pendingBarcode =
+  '';
 
 
-      const timer =
-        setTimeout(
-          function() {
-            cleanup();
-
-            reject(
-              new Error(
-                'Apps Script не ответил'
-              )
-            );
-          },
-          20000
-        );
+let cooldownUntil =
+  0;
 
 
-      function cleanup() {
-        clearTimeout(
-          timer
-        );
+let lastBarcode =
+  '';
 
 
-        try {
-          delete window[
-            callback
-          ];
-        }
-
-        catch(e) {}
+let lastBarcodeTime =
+  0;
 
 
-        if (
-          script.parentNode
-        ) {
-          script
-            .parentNode
-            .removeChild(
-              script
-            );
-        }
-      }
+let lastArticle =
+  '';
 
 
-      window[
-        callback
-      ] =
-        function(data) {
-          cleanup();
+let lastArticleTime =
+  0;
 
 
-          if (
-            data &&
-            data.ok
-          ) {
-            resolve(
-              data
-            );
-          }
 
-          else {
-            reject(
-              new Error(
-                data &&
-                data.error
-                  ? data.error
-                  : 'Ошибка API'
-              )
-            );
-          }
-        };
+/* =========================
+   API JSONP
+========================= */
 
-
-      const query =
-        new URLSearchParams(
-          Object.assign(
-            {
-              action:
-                action,
-
-              pin:
-                accessPin,
-
-              callback:
-                callback,
-
-              _:
-                Date.now()
-            },
-
-            params
-          )
-        );
-
-
-      script.src =
-        API +
-        '?' +
-        query.toString();
-
-
-      script.onerror =
-        function() {
-          cleanup();
-
-          reject(
-            new Error(
-              'Не удалось подключиться к Apps Script'
-            )
-          );
-        };
-
-
-      document
-        .body
-        .appendChild(
-          script
-        );
+function api(action, params = {}) {
+  return new Promise(function(resolve, reject) {
+    const callback = '__rims_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    const waitMs = action === 'ping' ? 30000 : 90000;
+    let settled = false;
+    const timer = setTimeout(function() {
+      finish(new Error('Нет ответа на «' + action + '» за ' + (waitMs / 1000) +
+        ' сек. ' + (action === 'ping' ? 'Проверьте адрес /exec и доступ к веб-приложению.' :
+        'Проверьте последнее выполнение doGet в Apps Script → Выполнения. Если операция меняет данные, проверьте результат в таблице перед повтором.')));
+    }, waitMs);
+    function finish(error, data) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      script.remove();
+      // A late response must not cause an uncaught ReferenceError.
+      window[callback] = function() {};
+      setTimeout(function() { delete window[callback]; }, 300000);
+      if (error) reject(error); else resolve(data);
     }
-  );
+    window[callback] = function(data) {
+      if (data && data.ok) finish(null, data);
+      else finish(new Error('Запрос «' + action + '»: ' + (data && data.error || 'неверный ответ сервера')));
+    };
+    script.onerror = function() {
+      finish(new Error('Не загрузился ответ «' + action + '». Проверьте адрес /exec и доступ к веб-приложению.'));
+    };
+    script.onload = function() {
+      if (!settled) finish(new Error('Запрос «' + action + '»: ответ загрузился, но callback не вызван. Проверьте адрес и версию развёртывания.'));
+    };
+    const query = new URLSearchParams(Object.assign({}, params, {
+      action: action, pin: accessPin, callback: callback, _: Date.now()
+    }));
+    script.src = API + '?' + query.toString();
+    document.body.appendChild(script);
+  });
 }
 
-
-/* ============================================================
+/* =========================
    LOGIN
-============================================================ */
+========================= */
 
 async function login() {
+
   const value =
     document
       .getElementById(
@@ -659,15 +605,11 @@ async function login() {
 
 
   try {
+
     const response =
       await api(
         'init'
       );
-
-
-    initApp(
-      response.data
-    );
 
 
     localStorage
@@ -675,9 +617,16 @@ async function login() {
         'warehousePin',
         accessPin
       );
+
+
+    initApp(
+      response.data
+    );
+
   }
 
   catch(err) {
+
     if (
       String(
         err.message
@@ -686,12 +635,15 @@ async function login() {
         'BAD_PIN'
       )
     ) {
+
       alert(
         'Неверный PIN'
       );
+
     }
 
     else {
+
       alert(
         err.message
       );
@@ -700,133 +652,30 @@ async function login() {
 }
 
 
-function initApp(data) {
-  if (
-    !data
-    ||
-    data.version !==
-    REQUIRED_BACKEND
-  ) {
-    document
-      .getElementById(
-        'login'
-      )
-      .classList
-      .add(
-        'hidden'
-      );
+/* =========================
+   INIT
+========================= */
 
+function initApp(
+  data
+) {
 
-    document
-      .getElementById(
-        'app'
-      )
-      .classList
-      .remove(
-        'hidden'
-      );
-
-
-    document
-      .getElementById(
-        'startBtn'
-      )
-      .disabled =
-      true;
-
-
-    setStatus(
-      '❌ <b>Работает старый Apps Script.</b><br><br>' +
-      'Нужен backend: <b>' +
-      REQUIRED_BACKEND +
-      '</b><br>' +
-      'Сейчас: <b>' +
-      escapeHtml(
-        data &&
-        data.version
-          ? data.version
-          : 'не определён'
-      ) +
-      '</b>',
-      'bad'
-    );
-
-
-    return;
-  }
-
-
-  batches =
-    Array.isArray(
-      data.batches
-    )
-      ? data.batches
-      : [];
+  catalog =
+    data.catalog ||
+    [];
 
 
   document
     .getElementById(
-      'sheetName'
+      'shipment'
     )
     .textContent =
-    'Лист: ' +
-    (
-      data.sheetName ||
-      ''
-    ) +
-    ' • backend: ' +
-    data.version;
+    '📦 ' +
+    data.shipmentName;
 
 
-  const stores =
-    [
-      ...new Set(
-        batches
-          .map(
-            function(batch) {
-              return batch.store;
-            }
-          )
-          .filter(
-            Boolean
-          )
-      )
-    ]
-    .sort();
-
-
-  const select =
-    document
-      .getElementById(
-        'storeSelect'
-      );
-
-
-  select.innerHTML =
-    '<option value="">— магазин —</option>';
-
-
-  stores.forEach(
-    function(store) {
-      const option =
-        document
-          .createElement(
-            'option'
-          );
-
-
-      option.value =
-        store;
-
-
-      option.textContent =
-        store;
-
-
-      select.appendChild(
-        option
-      );
-    }
+  updateSummary(
+    data.summary
   );
 
 
@@ -848,559 +697,132 @@ function initApp(data) {
     .remove(
       'hidden'
     );
-
-
-  setStatus(
-    'Выбери магазин и одну или несколько дат.',
-    'search'
-  );
 }
 
 
-/* ============================================================
-   STORE / DATES
-============================================================ */
+/* =========================
+   CAMERA
+========================= */
 
-function dateNumber(value) {
-  const m =
-    String(
-      value || ''
-    )
-    .match(
-      /(\d{1,2})[.\-/](\d{1,2})/
-    );
+async function startCamera() {
 
-
-  if (!m) {
-    return 0;
-  }
-
-
-  return (
-    Number(
-      m[2]
-    ) *
-    100
-    +
-    Number(
-      m[1]
-    )
-  );
-}
-
-
-function renderDates() {
-  selectedStore =
-    document
-      .getElementById(
-        'storeSelect'
-      )
-      .value;
-
-
-  selectedBatchIds = [];
-  catalog = [];
-
-
-  resetScanState();
-
-
-  document
-    .getElementById(
-      'startBtn'
-    )
-    .disabled =
-    true;
-
-
-  document
-    .getElementById(
-      'statsCard'
-    )
-    .classList
-    .add(
-      'hidden'
-    );
-
-
-  document
-    .getElementById(
-      'batchInfo'
-    )
-    .classList
-    .add(
-      'hidden'
-    );
-
-
-  const box =
-    document
-      .getElementById(
-        'dateChoices'
-      );
-
-
-  box.innerHTML =
-    '';
-
-
-  const actions =
-    document
-      .getElementById(
-        'dateActions'
-      );
-
-
-  const loadBtn =
-    document
-      .getElementById(
-        'loadBtn'
-      );
-
-
-  if (!selectedStore) {
-    actions
-      .classList
-      .add(
-        'hidden'
-      );
-
-
-    loadBtn
-      .classList
-      .add(
-        'hidden'
-      );
-
-
-    setStatus(
-      'Сначала выбери магазин.',
-      'search'
-    );
-
-
+  if (
+    cameraStarted
+  ) {
     return;
   }
 
 
-  const list =
-    batches
-      .filter(
-        function(batch) {
-          return (
-            batch.store ===
-            selectedStore
-          );
-        }
+  try {
+
+    setStatus(
+      'Запрашиваю камеру…',
+      'search'
+    );
+
+
+    document
+      .getElementById(
+        'camera'
       )
-      .sort(
-        function(a, b) {
-          return (
-            dateNumber(
-              a.date
-            )
-            -
-            dateNumber(
-              b.date
-            )
-          );
-        }
+      .classList
+      .remove(
+        'hidden'
       );
 
 
-  list.forEach(
-    function(batch) {
-      const label =
-        document
-          .createElement(
-            'label'
-          );
+    const formats = [
 
+      Html5QrcodeSupportedFormats
+        .EAN_13,
 
-      label.className =
-        'date-row';
+      Html5QrcodeSupportedFormats
+        .EAN_8,
 
+      Html5QrcodeSupportedFormats
+        .UPC_A,
 
-      const input =
-        document
-          .createElement(
-            'input'
-          );
+      Html5QrcodeSupportedFormats
+        .UPC_E,
 
+      Html5QrcodeSupportedFormats
+        .CODE_128,
 
-      input.type =
-        'checkbox';
+      Html5QrcodeSupportedFormats
+        .CODE_39,
 
-
-      input.className =
-        'date-check';
-
-
-      input.value =
-        batch.id;
-
-
-      const main =
-        document
-          .createElement(
-            'div'
-          );
-
-
-      main.className =
-        'date-row-main';
-
-
-      main.innerHTML =
-        '<div class="date-row-title">' +
-        escapeHtml(
-          batch.date ||
-          batch.label
-        ) +
-        '</div>' +
-        '<div class="date-row-meta">' +
-        batch.totalUnits +
-        ' шт. • ' +
-        batch.productRows +
-        ' строк</div>';
-
-
-      label.appendChild(
-        input
-      );
-
-
-      label.appendChild(
-        main
-      );
-
-
-      box.appendChild(
-        label
-      );
-    }
-  );
-
-
-  actions
-    .classList
-    .remove(
-      'hidden'
-    );
-
-
-  loadBtn
-    .classList
-    .remove(
-      'hidden'
-    );
-
-
-  setStatus(
-    'Отметь даты, которые приехали вместе.',
-    'search'
-  );
-}
-
-
-function toggleAllDates(value) {
-  document
-    .querySelectorAll(
-      '.date-check'
-    )
-    .forEach(
-      function(box) {
-        box.checked =
-          value;
-      }
-    );
-}
-
-
-async function loadSelection() {
-  const checked =
-    [
-      ...document
-        .querySelectorAll(
-          '.date-check:checked'
-        )
+      Html5QrcodeSupportedFormats
+        .ITF
     ];
 
 
-  if (!checked.length) {
-    setStatus(
-      'Выбери хотя бы одну дату.',
-      'bad'
-    );
-
-    return;
-  }
-
-
-  selectedBatchIds =
-    checked
-      .map(
-        function(box) {
-          return box.value;
-        }
-      );
-
-
-  /*
-   * Старые даты раньше новых.
-   */
-  selectedBatchIds.sort(
-    function(a, b) {
-      const ba =
-        batches.find(
-          function(x) {
-            return x.id === a;
-          }
-        );
-
-      const bb =
-        batches.find(
-          function(x) {
-            return x.id === b;
-          }
-        );
-
-      return (
-        dateNumber(
-          ba ? ba.date : ''
-        )
-        -
-        dateNumber(
-          bb ? bb.date : ''
-        )
-      );
-    }
-  );
-
-
-  resetScanState();
-
-
-  setStatus(
-    'Загружаю товары выбранных дат…',
-    'search'
-  );
-
-
-  try {
-    const response =
-      await api(
-        'catalog',
+    qr =
+      new Html5Qrcode(
+        'reader',
         {
-          batchIds:
-            selectedBatchIds
-              .join('~')
+          formatsToSupport:
+            formats
         }
       );
 
 
-    catalog =
-      Array.isArray(
-        response.data.catalog
-      )
-        ? response.data.catalog
-        : [];
+    const cameras =
+      await Html5Qrcode
+        .getCameras();
 
 
-    prepareCatalog();
+    if (
+      !cameras ||
+      !cameras.length
+    ) {
 
-
-    updateSummary(
-      response.data.summary
-    );
-
-
-    const selected =
-      selectedBatchIds
-        .map(
-          function(id) {
-            return batches.find(
-              function(batch) {
-                return (
-                  batch.id === id
-                );
-              }
-            );
-          }
-        )
-        .filter(
-          Boolean
-        );
-
-
-    const datesText =
-      selected
-        .map(
-          function(batch) {
-            return batch.date;
-          }
-        )
-        .join(', ');
-
-
-    document
-      .getElementById(
-        'shipment'
-      )
-      .textContent =
-      '📦 ' +
-      selectedStore +
-      ' — ' +
-      datesText;
-
-
-    document
-      .getElementById(
-        'batchInfo'
-      )
-      .innerHTML =
-      '<b>' +
-      escapeHtml(
-        selectedStore
-      ) +
-      '</b><br>' +
-      'Выбраны даты: ' +
-      escapeHtml(
-        datesText
-      ) +
-      '<br>' +
-      'Артикулов для автоматического сканирования: ' +
-      catalog.length;
-
-
-    document
-      .getElementById(
-        'batchInfo'
-      )
-      .classList
-      .remove(
-        'hidden'
+      throw new Error(
+        'Камера не найдена'
       );
-
-
-    document
-      .getElementById(
-        'statsCard'
-      )
-      .classList
-      .remove(
-        'hidden'
-      );
-
-
-    document
-      .getElementById(
-        'startBtn'
-      )
-      .disabled =
-      false;
-
-
-    setStatus(
-      'Готово. Запускай камеру.',
-      'search'
-    );
-  }
-
-  catch(err) {
-    setStatus(
-      '❌ ' +
-      escapeHtml(
-        err.message ||
-        String(err)
-      ),
-      'bad'
-    );
-  }
-}
-
-
-/* ============================================================
-   CAMERA + TORCH
-============================================================ */
-
-async function startScanner() {
-  if (
-    !selectedBatchIds.length
-  ) {
-    setStatus(
-      'Сначала выбери даты.',
-      'bad'
-    );
-
-    return;
-  }
-
-
-  try {
-    if (!stream) {
-      stream =
-        await navigator
-          .mediaDevices
-          .getUserMedia({
-            audio:
-              false,
-
-            video: {
-              facingMode: {
-                ideal:
-                  'environment'
-              },
-
-              width: {
-                ideal:
-                  1920
-              },
-
-              height: {
-                ideal:
-                  1080
-              }
-            }
-          });
-
-
-      const video =
-        document
-          .getElementById(
-            'video'
-          );
-
-
-      video.srcObject =
-        stream;
-
-
-      await video.play();
-
-
-      track =
-        stream
-          .getVideoTracks()[0];
-
-
-      await improveCamera();
     }
 
 
-    document
-      .getElementById(
-        'cameraCard'
+    const back =
+      cameras.find(
+        function(cam) {
+
+          return /back|rear|environment|зад/i
+            .test(
+              cam.label ||
+              ''
+            );
+        }
       )
-      .classList
-      .remove(
-        'hidden'
-      );
+      ||
+      cameras[
+        cameras.length - 1
+      ];
+
+
+    await qr.start(
+
+      back.id,
+
+      {
+        fps:
+          12,
+
+        qrbox: (w,h) => ({width:Math.min(310,Math.floor(w*.85)),height:Math.min(150,Math.floor(h*.5))})
+      },
+
+      barcodeFound,
+
+      function() {}
+    );
+
+
+    cameraStarted =
+      true;
 
 
     document
       .getElementById(
-        'startBtn'
+        'start'
       )
       .classList
       .add(
@@ -1408,469 +830,251 @@ async function startScanner() {
       );
 
 
+    document
+      .getElementById(
+        'ocrButton'
+      )
+      .classList
+      .remove(
+        'hidden'
+      );
+
+
     setStatus(
-      'Наведи всю этикетку в синюю рамку.',
+
+      'Камера работает.<br><br>' +
+      'Наведи на этикетку товара.',
+
       'search'
     );
 
 
-    if (!worker) {
-      await initOcr();
-    }
+    initOcr();
+
   }
 
   catch(err) {
+
     setStatus(
-      '❌ Не удалось запустить камеру:<br>' +
+
+      '❌ Камера не запустилась:<br><br>' +
       escapeHtml(
         err.message ||
         String(err)
-      ),
+      ) +
+      '<br><br>' +
+      'Открой страницу в Chrome или Safari ' +
+      'и разреши доступ к камере.',
+
       'bad'
     );
   }
 }
 
 
-async function improveCamera() {
-  if (!track) {
+/* =========================
+   BARCODE
+========================= */
+
+async function barcodeFound(
+  code
+) {
+
+  const now =
+    Date.now();
+
+
+  if (
+    now <
+    cooldownUntil
+  ) {
     return;
   }
 
 
+  if (
+    serverBusy
+  ) {
+    return;
+  }
+
+
+  if (
+    pendingBarcode ===
+    code
+  ) {
+    return;
+  }
+
+
+  if (
+    code ===
+      lastBarcode &&
+    now -
+      lastBarcodeTime
+    <
+    2500
+  ) {
+    return;
+  }
+
+
+  lastBarcode =
+    code;
+
+
+  lastBarcodeTime =
+    now;
+
+
+  serverBusy =
+    true;
+
+
+  vibrate(
+    70
+  );
+
+
+  setStatus(
+
+    '📦 Штрихкод:<br><b>' +
+    escapeHtml(
+      code
+    ) +
+    '</b><br><br>' +
+    'Проверяю…',
+
+    'search'
+  );
+
+
   try {
-    const cap =
-      track.getCapabilities
-        ? track.getCapabilities()
-        : {};
 
+    const response =
+      await api(
 
-    const advanced = [];
+        'scan',
 
-
-    if (
-      cap.focusMode
-      &&
-      cap.focusMode.includes(
-        'continuous'
-      )
-    ) {
-      advanced.push({
-        focusMode:
-          'continuous'
-      });
-    }
-
-
-    if (
-      cap.exposureMode
-      &&
-      cap.exposureMode.includes(
-        'continuous'
-      )
-    ) {
-      advanced.push({
-        exposureMode:
-          'continuous'
-      });
-    }
-
-
-    if (
-      advanced.length
-    ) {
-      await track.applyConstraints({
-        advanced:
-          advanced
-      });
-    }
-
-
-    torchSupported =
-      cap.torch === true
-      ||
-      (
-        Array.isArray(
-          cap.torch
-        )
-        &&
-        cap.torch.length > 0
+        {
+          barcode:
+            code
+        }
       );
 
 
-    if (
-      torchSupported
-    ) {
-      document
-        .getElementById(
-          'torchBtn'
-        )
-        .classList
-        .remove(
-          'hidden'
-        );
-    }
-  }
-
-  catch(e) {
-    console.log(
-      'camera',
-      e
-    );
-  }
-}
-
-
-async function toggleTorch() {
-  if (
-    !track
-    ||
-    !torchSupported
-  ) {
-    setStatus(
-      '⚠️ Фонарик недоступен на этом устройстве.',
-      'warn'
+    handleResult(
+      response.result
     );
 
-    return;
-  }
-
-
-  const next =
-    !torchOn;
-
-
-  try {
-    await track.applyConstraints({
-      advanced: [
-        {
-          torch:
-            next
-        }
-      ]
-    });
-
-
-    torchOn =
-      next;
-
-
-    const btn =
-      document
-        .getElementById(
-          'torchBtn'
-        );
-
-
-    btn.textContent =
-      torchOn
-        ? '🔦 ВЫКЛЮЧИТЬ ФОНАРИК'
-        : '🔦 ВКЛЮЧИТЬ ФОНАРИК';
-
-
-    btn.classList.toggle(
-      'torch-on',
-      torchOn
-    );
   }
 
   catch(err) {
-    setStatus(
-      '⚠️ Не удалось переключить фонарик.',
-      'warn'
+
+    serverBusy =
+      false;
+
+
+    showError(
+      err
     );
   }
 }
 
 
-/* ============================================================
-   OCR
-============================================================ */
+/* =========================
+   OCR INIT
+========================= */
 
 async function initOcr() {
+
   try {
-    setOcrBadge(
-      'OCR: загрузка…'
+
+    setStatus(
+
+      'Камера работает.<br>' +
+      'Загружаю распознавание артикулов…',
+
+      'search'
     );
 
 
-    const needsRussian =
-      catalog.some(
-        function(item) {
-          return /[А-ЯЁ]/i.test(
-            String(
-              item.articleKey || ''
-            )
-          );
-        }
-      );
-
-
-    worker =
+    ocrWorker =
       await Tesseract
         .createWorker(
-          needsRussian
-            ? [
-                'eng',
-                'rus'
-              ]
-            : 'eng'
+          'eng'
         );
 
 
-    await worker.setParameters({
-      tessedit_char_whitelist:
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz' +
-        'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ' +
-        'абвгдеёжзийклмнопрстуфхцчшщъыьэюя' +
-        '0123456789-./_+ ',
+    await ocrWorker
+      .setParameters({
 
-      preserve_interword_spaces:
-        '1',
+        tessedit_char_whitelist:
+          'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-./ ',
 
-      tessedit_pageseg_mode:
-        '11',
-
-      user_defined_dpi:
-        '300'
-    });
+        preserve_interword_spaces:
+          '1'
+      });
 
 
     ocrReady =
       true;
 
 
-    setOcrBadge(
-      'OCR: готов'
+    setStatus(
+
+      '✅ Готово.<br><br>' +
+      'Наведи камеру на штрихкод ' +
+      'или напечатанный артикул.',
+
+      'search'
     );
 
 
-    ocrLoop();
+    setInterval(
+      function() {
+
+        runOcr(
+          false
+        );
+
+      },
+      1900
+    );
+
   }
 
   catch(err) {
-    setOcrBadge(
-      'OCR: ошибка'
-    );
-
 
     setStatus(
-      '❌ OCR не загрузился:<br>' +
-      escapeHtml(
-        err.message ||
-        String(err)
-      ),
-      'bad'
+
+      '⚠️ OCR не загрузился, ' +
+      'но штрихкоды можно сканировать.',
+
+      'warn'
     );
   }
 }
 
 
-async function ocrLoop() {
-  if (!ocrReady) {
-    return;
-  }
+/* =========================
+   CAMERA FRAME
+========================= */
 
+function getFrame() {
 
-  if (
-    ocrBusy
-    ||
-    serverBusy
-    ||
-    !selectedBatchIds.length
-  ) {
-    setTimeout(
-      ocrLoop,
-      80
-    );
-
-    return;
-  }
-
-
-  ocrBusy =
-    true;
-
-
-  pass++;
-
-
-  try {
-    /*
-     * Быстрый цикл:
-     * один OCR-проход на итерацию.
-     * Чередуем мягкий и контрастный кадр.
-     */
-    const threshold =
-      pass % 2 === 0;
-
-
-    const canvas =
-      captureLabel(
-        threshold
-      );
-
-
-    if (canvas) {
-      setOcrBadge(
-        threshold
-          ? 'OCR: контраст'
-          : 'OCR: читаю'
-      );
-
-
-      const result =
-        await worker
-          .recognize(
-            canvas
-          );
-
-
-      const text =
-        result &&
-        result.data
-          ? (
-              result.data.text ||
-              ''
-            )
-          : '';
-
-
-      const confidence =
-        result &&
-        result.data
-          ? Number(
-              result.data.confidence || 0
-            )
-          : 0;
-
-
-      showSeen(
-        text
-      );
-
-
-      processOcr(
-        text,
-        confidence
-      );
-    }
-  }
-
-  catch(err) {
-    console.log(
-      'OCR',
-      err
-    );
-  }
-
-  finally {
-    ocrBusy =
-      false;
-
-
-    if (
-      ocrReady
-    ) {
-      setOcrBadge(
-        'OCR: готов'
-      );
-    }
-
-
-    setTimeout(
-      ocrLoop,
-      30
-    );
-  }
-}
-
-
-function getVideo() {
   const video =
-    document
-      .getElementById(
-        'video'
-      );
+    document.querySelector(
+      '#reader video'
+    );
 
 
   if (
-    !video
-    ||
+    !video ||
     !video.videoWidth
-    ||
-    !video.videoHeight
   ) {
     return null;
   }
-
-
-  return video;
-}
-
-
-function captureLabel(
-  thresholdMode
-) {
-  const video =
-    getVideo();
-
-
-  if (!video) {
-    return null;
-  }
-
-
-  const sw =
-    Math.round(
-      video.videoWidth *
-      .96
-    );
-
-
-  const sh =
-    Math.round(
-      video.videoHeight *
-      .92
-    );
-
-
-  const sx =
-    Math.round(
-      (
-        video.videoWidth -
-        sw
-      ) /
-      2
-    );
-
-
-  const sy =
-    Math.round(
-      (
-        video.videoHeight -
-        sh
-      ) /
-      2
-    );
-
-
-  /*
-   * Маленький кадр = заметно быстрее OCR.
-   */
-  const targetWidth =
-    920;
-
-
-  const scale =
-    Math.min(
-      1,
-      targetWidth /
-      Math.max(
-        sw,
-        1
-      )
-    );
 
 
   const canvas =
@@ -1880,42 +1084,54 @@ function captureLabel(
       );
 
 
+  const ctx =
+    canvas
+      .getContext(
+        '2d'
+      );
+
+
+  const width =
+    video.videoWidth *
+    .95;
+
+
+  const height =
+    video.videoHeight *
+    .82;
+
+
+  const x =
+    (
+      video.videoWidth -
+      width
+    ) / 2;
+
+
+  const y =
+    (
+      video.videoHeight -
+      height
+    ) / 2;
+
+
   canvas.width =
-    Math.max(
-      1,
-      Math.round(
-        sw *
-        scale
-      )
-    );
+    width * 1.4;
 
 
   canvas.height =
-    Math.max(
-      1,
-      Math.round(
-        sh *
-        scale
-      )
-    );
-
-
-  const ctx =
-    canvas.getContext(
-      '2d',
-      {
-        willReadFrequently:
-          true
-      }
-    );
+    height * 1.4;
 
 
   ctx.drawImage(
+
     video,
-    sx,
-    sy,
-    sw,
-    sh,
+
+    x,
+    y,
+    width,
+    height,
+
     0,
     0,
     canvas.width,
@@ -1923,211 +1139,211 @@ function captureLabel(
   );
 
 
-  preprocess(
-    ctx,
-    canvas.width,
-    canvas.height,
-    thresholdMode
-  );
-
-
   return canvas;
 }
 
 
-function preprocess(
-  ctx,
-  width,
-  height,
-  thresholdMode
+/* =========================
+   OCR
+========================= */
+
+async function runOcr(
+  forced
 ) {
-  try {
-    const image =
-      ctx.getImageData(
-        0,
-        0,
-        width,
-        height
-      );
 
-
-    const d =
-      image.data;
-
-
-    let mean =
-      128;
-
-
-    if (
-      thresholdMode
-    ) {
-      let sum = 0;
-      let count = 0;
-
-
-      for (
-        let i = 0;
-        i < d.length;
-        i += 32
-      ) {
-        const g =
-          d[i] * .299
-          +
-          d[i + 1] * .587
-          +
-          d[i + 2] * .114;
-
-
-        sum += g;
-        count++;
-      }
-
-
-      if (count) {
-        mean =
-          sum /
-          count;
-      }
-    }
-
-
-    for (
-      let i = 0;
-      i < d.length;
-      i += 4
-    ) {
-      const gray =
-        d[i] * .299
-        +
-        d[i + 1] * .587
-        +
-        d[i + 2] * .114;
-
-
-      let value;
-
-
-      if (
-        thresholdMode
-      ) {
-        const t =
-          Math.max(
-            85,
-            Math.min(
-              195,
-              mean *
-              .92
-            )
-          );
-
-
-        value =
-          gray >= t
-            ? 255
-            : 0;
-      }
-
-      else {
-        value =
-          (
-            gray -
-            128
-          ) *
-          1.20
-          +
-          128;
-
-
-        value =
-          Math.max(
-            0,
-            Math.min(
-              255,
-              value
-            )
-          );
-      }
-
-
-      d[i] =
-        value;
-
-      d[i + 1] =
-        value;
-
-      d[i + 2] =
-        value;
-    }
-
-
-    ctx.putImageData(
-      image,
-      0,
-      0
-    );
+  if (
+    !ocrReady ||
+    ocrBusy ||
+    serverBusy
+  ) {
+    return;
   }
 
-  catch(e) {}
-}
+
+  if (
+    !forced &&
+    Date.now() <
+      cooldownUntil
+  ) {
+    return;
+  }
 
 
-/* ============================================================
-   OCR MATCHING — ARTICLE FIRST
-============================================================ */
-
-let articleOwners = {};
+  const frame =
+    getFrame();
 
 
-function prepareCatalog() {
-  articleOwners = {};
+  if (!frame) {
+    return;
+  }
 
 
-  catalog.forEach(
-    function(item) {
-      const key =
-        normalize(
-          item.articleKey
+  ocrBusy =
+    true;
+
+
+  try {
+
+    const result =
+      await ocrWorker
+        .recognize(
+          frame
         );
 
 
-      if (!key) {
-        return;
-      }
+    const text =
+      result.data.text ||
+      '';
 
 
-      if (
-        !articleOwners[
-          key
-        ]
-      ) {
-        articleOwners[
-          key
-        ] =
-          new Set();
-      }
-
-
-      articleOwners[
-        key
-      ]
-      .add(
-        item.brandKey
+    const match =
+      findArticle(
+        text
       );
+
+
+    if (!match) {
+
+      if (forced) {
+
+        setStatus(
+
+          '🔍 Артикул не найден.<br><br>' +
+          'Поднеси этикетку ближе и держи ровно.',
+
+          'warn'
+        );
+      }
+
+
+      return;
     }
-  );
+
+
+    const now =
+      Date.now();
+
+
+    if (
+      match.article ===
+        lastArticle &&
+      now -
+        lastArticleTime
+      <
+      2600
+    ) {
+      return;
+    }
+
+
+    lastArticle =
+      match.article;
+
+
+    lastArticleTime =
+      now;
+
+
+    serverBusy =
+      true;
+
+
+    setStatus(
+
+      '🔍 Найден артикул:<br>' +
+
+      '<b>' +
+      escapeHtml(
+        match.article
+      ) +
+      '</b><br>' +
+
+      escapeHtml(
+        match.name
+      ) +
+
+      '<br><br>Проверяю…',
+
+      'search'
+    );
+
+
+    let response;
+
+
+    if (
+      pendingBarcode
+    ) {
+
+      response =
+        await api(
+
+          'bind',
+
+          {
+            barcode:
+              pendingBarcode,
+
+            article:
+              match.article
+          }
+        );
+
+    }
+
+    else {
+
+      response =
+        await api(
+
+          'ocr',
+
+          {
+            article:
+              match.article
+          }
+        );
+    }
+
+
+    handleResult(
+      response.result
+    );
+
+  }
+
+  catch(err) {
+
+    serverBusy =
+      false;
+
+
+    showError(
+      err
+    );
+
+  }
+
+  finally {
+
+    ocrBusy =
+      false;
+  }
 }
 
 
-function normalize(value) {
+/* =========================
+   OCR MATCH
+========================= */
+
+function normalize(
+  value
+) {
+
   return String(
     value || ''
   )
     .toUpperCase()
-    .replace(
-      /Ё/g,
-      'Е'
-    )
     .replace(
       /[^A-ZА-Я0-9]/g,
       ''
@@ -2135,150 +1351,69 @@ function normalize(value) {
 }
 
 
-function tokens(value) {
-  return (
-    String(
-      value || ''
-    )
-    .toUpperCase()
-    .replace(
-      /Ё/g,
-      'Е'
-    )
-    .match(
-      /[A-ZА-Я0-9]+/g
-    )
-    ||
-    []
-  );
-}
+function getCandidates(
+  text
+) {
 
-
-function canonical(value) {
-  return normalize(
-    value
-  )
-    .replace(
-      /[OОQ]/g,
-      '0'
-    )
-    .replace(
-      /[IІL]/g,
-      '1'
-    )
-    .replace(
-      /Z/g,
-      '2'
-    )
-    .replace(
-      /S/g,
-      '5'
-    )
-    .replace(
-      /B/g,
-      '8'
-    )
-    .replace(
-      /G/g,
-      '6'
-    );
-}
-
-
-function makeCandidates(text) {
-  const lines =
+  const parts =
     String(
       text || ''
     )
-    .toUpperCase()
-    .replace(
-      /Ё/g,
-      'Е'
-    )
-    .split(
-      /\n+/
-    )
-    .map(
-      function(x) {
-        return x.trim();
-      }
-    )
-    .filter(
-      Boolean
-    );
+      .toUpperCase()
+      .replace(
+        /[^A-ZА-Я0-9\-./\s]/g,
+        ' '
+      )
+      .split(/\s+/)
+      .map(
+        normalize
+      )
+      .filter(Boolean);
 
 
   const set =
     new Set();
 
 
-  function add(value) {
-    const n =
-      normalize(
-        value
-      );
+  for (
+    let i = 0;
+    i < parts.length;
+    i++
+  ) {
 
-
-    if (
-      n.length >= 2
-      &&
-      n.length <= 50
+    for (
+      let count = 1;
+      count <= 3;
+      count++
     ) {
-      set.add(
-        n
-      );
-    }
-  }
 
-
-  lines.forEach(
-    function(line) {
-      add(
-        line
-      );
-
-
-      const parts =
-        tokens(
-          line
-        );
-
-
-      parts.forEach(
-        add
-      );
-
-
-      for (
-        let i = 0;
-        i < parts.length;
-        i++
+      if (
+        i + count >
+        parts.length
       ) {
-        for (
-          let count = 2;
-          count <= 4;
-          count++
-        ) {
-          if (
-            i + count >
-            parts.length
-          ) {
-            break;
-          }
+        break;
+      }
 
 
-          add(
-            parts
-              .slice(
-                i,
-                i + count
-              )
-              .join('')
-          );
-        }
+      const value =
+        parts
+          .slice(
+            i,
+            i + count
+          )
+          .join('');
+
+
+      if (
+        value.length >= 3
+      ) {
+
+        set.add(
+          value
+        );
       }
     }
-  );
+  }
 
 
   return [
@@ -2287,230 +1422,32 @@ function makeCandidates(text) {
 }
 
 
-function brandSeen(
-  item,
+function findArticle(
   text
 ) {
-  const parts =
-    new Set(
-      tokens(
-        text
-      )
-      .map(
-        normalize
-      )
-    );
 
-
-  const brand =
-    normalize(
-      item.brandKey
-    );
-
-
-  if (
-    brand.length < 3
-  ) {
-    return false;
-  }
-
-
-  /*
-   * Для многословного бренда достаточно,
-   * что его нормализованное значение встречается
-   * в полном OCR-тексте.
-   */
   const full =
     normalize(
       text
     );
 
 
-  return (
-    parts.has(
-      brand
-    )
-    ||
-    full.includes(
-      brand
-    )
-  );
-}
-
-
-function scoreArticle(
-  articleKey,
-  candidate
-) {
-  const a =
-    normalize(
-      articleKey
-    );
-
-
-  const c =
-    normalize(
-      candidate
-    );
-
-
-  if (
-    !a
-    ||
-    !c
-  ) {
-    return {
-      score: 0,
-      exact: false
-    };
-  }
-
-
-  if (
-    a === c
-  ) {
-    return {
-      score: 1,
-      exact: true
-    };
-  }
-
-
-  /*
-   * OCR может приклеить PARTNO / ARTICLE и т.п.
-   */
-  if (
-    a.length >= 5
-    &&
-    c.includes(
-      a
-    )
-    &&
-    c.length -
-      a.length
-    <= 12
-  ) {
-    return {
-      score: .985,
-      exact: true
-    };
-  }
-
-
-  /*
-   * O/0, I/1, S/5 и т.п.
-   * Только для кодов, где есть цифра.
-   */
-  if (
-    /\d/.test(a)
-    &&
-    canonical(a)
-    ===
-    canonical(c)
-  ) {
-    return {
-      score: .99,
-      exact: true
-    };
-  }
-
-
-  /*
-   * Нечёткий вариант — только длинные коды.
-   */
-  if (
-    a.length >= 6
-    &&
-    c.length >= 6
-    &&
-    Math.abs(
-      a.length -
-      c.length
-    ) <= 2
-  ) {
-    const aa =
-      /\d/.test(a)
-        ? canonical(a)
-        : a;
-
-
-    const cc =
-      /\d/.test(c)
-        ? canonical(c)
-        : c;
-
-
-    const dist =
-      levenshtein(
-        aa,
-        cc
-      );
-
-
-    const maxEdits =
-      Math.max(
-        aa.length,
-        cc.length
-      ) >= 10
-        ? 2
-        : 1;
-
-
-    if (
-      dist <=
-      maxEdits
-    ) {
-      return {
-        score:
-          (
-            1 -
-            dist /
-            Math.max(
-              aa.length,
-              cc.length
-            )
-          )
-          *
-          .96,
-
-        exact:
-          false
-      };
-    }
-  }
-
-
-  return {
-    score: 0,
-    exact: false
-  };
-}
-
-
-function findBest(text) {
   const candidates =
-    makeCandidates(
+    getCandidates(
       text
     );
 
 
-  if (
-    !candidates.length
-    ||
-    !catalog.length
-  ) {
-    return null;
-  }
-
-
-  const results = [];
+  const matches =
+    [];
 
 
   catalog.forEach(
     function(item) {
+
       const article =
         normalize(
-          item.articleKey
+          item.article
         );
 
 
@@ -2519,708 +1456,305 @@ function findBest(text) {
       }
 
 
-      const owners =
-        articleOwners[
-          article
-        ];
+      const numeric =
+        /^\d+$/
+          .test(
+            article
+          );
+
+
+      let found =
+        false;
 
 
       /*
-       * Если один и тот же артикул есть у разных брендов,
-       * без бренда с этикетки не выбираем наугад.
+       * Короткие цифровые артикула
+       * нельзя искать внутри EAN.
        */
-      const duplicateAcrossBrands =
-        owners
-        &&
-        owners.size > 1;
-
-
-      const hasBrand =
-        brandSeen(
-          item,
-          text
-        );
-
-
       if (
-        duplicateAcrossBrands
-        &&
-        !hasBrand
+        numeric &&
+        article.length <= 6
       ) {
-        return;
-      }
 
-
-      let bestScore = 0;
-      let bestExact = false;
-
-
-      candidates.forEach(
-        function(candidate) {
-          const s =
-            scoreArticle(
-              article,
-              candidate
+        found =
+          candidates
+            .includes(
+              article
             );
 
-
-          if (
-            s.score >
-            bestScore
-          ) {
-            bestScore =
-              s.score;
-
-            bestExact =
-              s.exact;
-          }
-        }
-      );
-
-
-      if (
-        bestScore <= 0
-      ) {
-        return;
       }
 
+      else {
 
-      const finalScore =
-        Math.min(
-          1,
-          bestScore +
-          (
-            hasBrand
-              ? .003
-              : 0
+        found =
+          full.includes(
+            article
           )
-        );
-
-
-      results.push({
-        articleKey:
-          item.articleKey,
-
-        article:
-          item.article,
-
-        brandKey:
-          item.brandKey,
-
-        brand:
-          item.brand,
-
-        name:
-          item.name,
-
-        score:
-          finalScore,
-
-        exact:
-          bestExact
-      });
-    }
-  );
-
-
-  if (!results.length) {
-    return null;
-  }
-
-
-  results.sort(
-    function(a, b) {
-      return (
-        b.score -
-        a.score
-      );
-    }
-  );
-
-
-  const best =
-    results[0];
-
-
-  const second =
-    results[1];
-
-
-  if (
-    best.score < .90
-  ) {
-    return null;
-  }
-
-
-  if (
-    second
-    &&
-    second.articleKey !==
-      best.articleKey
-    &&
-    best.score -
-      second.score
-    < .04
-  ) {
-    return null;
-  }
-
-
-  return best;
-}
-
-
-/* ============================================================
-   PROCESS OCR
-============================================================ */
-
-function resetScanState() {
-  blockedArticleKey = '';
-  blockedClearFrames = 0;
-
-  candidateKey = '';
-  candidateHits = 0;
-  candidateAt = 0;
-
-  notFoundHits = 0;
-}
-
-
-function meaningfulText(
-  text,
-  confidence
-) {
-  if (
-    Number(
-      confidence || 0
-    ) < 35
-  ) {
-    return false;
-  }
-
-
-  const parts =
-    tokens(
-      text
-    );
-
-
-  return (
-    parts.some(
-      function(x) {
-        return (
-          normalize(
-            x
-          ).length >= 4
-        );
+          ||
+          candidates.includes(
+            article
+          );
       }
-    )
+
+
+      if (found) {
+
+        matches.push({
+
+          article:
+            item.article,
+
+          name:
+            item.name,
+
+          length:
+            article.length
+        });
+      }
+    }
   );
+
+
+  if (
+    !matches.length
+  ) {
+    return null;
+  }
+
+
+  matches.sort(
+    function(a, b) {
+
+      return (
+        b.length -
+        a.length
+      );
+    }
+  );
+
+
+  return matches[0];
 }
 
 
-function processOcr(
-  text,
-  confidence
+/* =========================
+   RESULT
+========================= */
+
+function handleResult(
+  res
 ) {
-  const best =
-    findBest(
-      text
-    );
-
-
-  /*
-   * После успешного скана одной коробки
-   * ждём, пока она реально исчезнет из OCR.
-   */
-  if (
-    blockedArticleKey
-  ) {
-    if (
-      best
-      &&
-      normalize(
-        best.articleKey
-      )
-      ===
-      normalize(
-        blockedArticleKey
-      )
-    ) {
-      blockedClearFrames =
-        0;
-
-
-      setStatus(
-        '✅ 1 штука уже учтена.<br><br>' +
-        '<b>Покажи следующий товар.</b>',
-        'ok'
-      );
-
-
-      return;
-    }
-
-
-    blockedClearFrames++;
-
-
-    if (
-      blockedClearFrames <
-      2
-    ) {
-      return;
-    }
-
-
-    blockedArticleKey =
-      '';
-
-
-    blockedClearFrames =
-      0;
-  }
-
-
-  if (!best) {
-    candidateKey =
-      '';
-
-    candidateHits =
-      0;
-
-
-    if (
-      meaningfulText(
-        text,
-        confidence
-      )
-    ) {
-      notFoundHits++;
-    }
-
-    else {
-      notFoundHits =
-        0;
-    }
-
-
-    if (
-      notFoundHits >=
-      2
-    ) {
-      setStatus(
-        '❌ <b>Данного товара нет в этом списке</b>',
-        'bad'
-      );
-    }
-
-
-    return;
-  }
-
-
-  notFoundHits =
-    0;
-
-
-  /*
-   * Точное распознавание артикула —
-   * принимаем сразу, без второго кадра.
-   */
-  if (
-    best.exact
-    &&
-    best.score >= .985
-  ) {
-    acceptItem(
-      best
-    );
-
-    return;
-  }
-
-
-  /*
-   * Нечёткое распознавание —
-   * только два одинаковых результата подряд.
-   */
-  const key =
-    normalize(
-      best.brandKey
-    )
-    +
-    '|'
-    +
-    normalize(
-      best.articleKey
-    );
-
-
-  const now =
-    Date.now();
-
-
-  if (
-    candidateKey ===
-      key
-    &&
-    now -
-      candidateAt
-    < 2500
-  ) {
-    candidateHits++;
-  }
-
-  else {
-    candidateKey =
-      key;
-
-    candidateHits =
-      1;
-  }
-
-
-  candidateAt =
-    now;
-
-
-  setStatus(
-    '🔎 Артикул похож на <b>' +
-    escapeHtml(
-      best.article
-    ) +
-    '</b>. Быстро перепроверяю…',
-    'search'
-  );
-
-
-  if (
-    candidateHits >=
-    2
-  ) {
-    acceptItem(
-      best
-    );
-  }
-}
-
-
-/* ============================================================
-   ACCEPT
-============================================================ */
-
-async function acceptItem(item) {
-  if (
-    serverBusy
-    ||
-    !selectedBatchIds.length
-  ) {
-    return;
-  }
-
 
   serverBusy =
-    true;
+    false;
 
 
-  candidateKey =
-    '';
+  if (
+    res.summary
+  ) {
 
-  candidateHits =
-    0;
+    updateSummary(
+      res.summary
+    );
+  }
 
-  notFoundHits =
-    0;
+
+  if (
+    res.type ===
+    'unknown'
+  ) {
+
+    pendingBarcode =
+      res.barcode;
+
+
+    setStatus(
+
+      '📦 Штрихкод считан:<br>' +
+
+      '<b>' +
+      escapeHtml(
+        res.barcode
+      ) +
+      '</b><br><br>' +
+
+      'Теперь автоматически ищу ' +
+      'артикул на этой же этикетке.',
+
+      'warn'
+    );
+
+
+    setTimeout(
+      function() {
+
+        runOcr(
+          true
+        );
+
+      },
+      100
+    );
+
+
+    return;
+  }
+
+
+  if (
+    res.type ===
+      'complete'
+    ||
+    res.type ===
+      'partial'
+  ) {
+
+    const complete =
+      res.type ===
+      'complete';
+
+
+    setStatus(
+
+      (
+        complete
+          ?
+          '✅ '
+          :
+          '🟡 '
+      ) +
+
+      '<b>' +
+      escapeHtml(
+        res.name
+      ) +
+      '</b><br><br>' +
+
+      'Артикул: <b>' +
+      escapeHtml(
+        res.article
+      ) +
+      '</b><br>' +
+
+      'Нужно: ' +
+      res.expected +
+      '<br>' +
+
+      'Принято: <b>' +
+      res.accepted +
+      '</b><br>' +
+
+      'Осталось: <b>' +
+      res.remaining +
+      '</b>',
+
+      complete
+        ?
+        'ok'
+        :
+        'warn'
+    );
+
+
+    pendingBarcode =
+      '';
+
+
+    cooldownUntil =
+      Date.now() +
+      2800;
+
+
+    vibrate(
+      [80,60,80]
+    );
+
+
+    return;
+  }
+
+
+  if (
+    res.type ===
+    'extra'
+  ) {
+
+    setStatus(
+
+      '⚠️ <b>ЛИШНЯЯ ЕДИНИЦА</b><br><br>' +
+
+      escapeHtml(
+        res.name
+      ) +
+
+      '<br>Уже принято: ' +
+      res.accepted +
+      ' из ' +
+      res.expected,
+
+      'bad'
+    );
+
+
+    pendingBarcode =
+      '';
+
+
+    cooldownUntil =
+      Date.now() +
+      3500;
+
+
+    return;
+  }
+
+
+  if (
+    res.type ===
+    'conflict'
+  ) {
+
+    setStatus(
+
+      '❌ Конфликт штрихкода.<br><br>' +
+
+      'Он уже привязан к ' +
+
+      '<b>' +
+      escapeHtml(
+        res.mappedArticle
+      ) +
+      '</b>',
+
+      'bad'
+    );
+
+
+    pendingBarcode =
+      '';
+
+
+    return;
+  }
 
 
   setStatus(
-    '✅ Артикул найден: <b>' +
-    escapeHtml(
-      item.article
-    ) +
-    '</b><br>' +
-    escapeHtml(
-      item.name
-    ) +
-    '<br><br>' +
-    'Проверяю реальную ячейку E…',
-    'search'
+
+    '❌ Товар не найден',
+
+    'bad'
   );
-
-
-  try {
-    const response =
-      await api(
-        'accept',
-        {
-          batchIds:
-            selectedBatchIds
-              .join('~'),
-
-          articleKey:
-            item.articleKey,
-
-          brandKey:
-            item.brandKey
-        }
-      );
-
-
-    const res =
-      response.result;
-
-
-    if (!res) {
-      throw new Error(
-        'Пустой ответ сервера'
-      );
-    }
-
-
-    if (
-      res.summary
-    ) {
-      updateSummary(
-        res.summary
-      );
-    }
-
-
-    if (
-      res.type ===
-      'accepted'
-    ) {
-      serverBusy =
-        false;
-
-
-      blockedArticleKey =
-        item.articleKey;
-
-
-      blockedClearFrames =
-        0;
-
-
-      const complete =
-        res.rowComplete;
-
-
-      setStatus(
-        (
-          complete
-            ? '✅ '
-            : '🟡 '
-        ) +
-        '<b>' +
-        escapeHtml(
-          res.name
-        ) +
-        '</b><br><br>' +
-        'Артикул: <b>' +
-        escapeHtml(
-          res.article
-        ) +
-        '</b><br>' +
-        'Поставка: <b>' +
-        escapeHtml(
-          res.batch
-        ) +
-        '</b><br>' +
-        'Эта строка: <b>' +
-        res.rowAccepted +
-        '</b> из ' +
-        res.rowQty +
-        '<br>' +
-        (
-          complete
-            ? 'Ячейка E стала ЯРКО-ЗЕЛЁНОЙ.'
-            : 'Ячейка E стала ЯРКО-ЖЁЛТОЙ.'
-        ),
-        complete
-          ? 'ok'
-          : 'warn'
-      );
-
-
-      vibrate(
-        [70,45,70]
-      );
-
-
-      return;
-    }
-
-
-    if (
-      res.type ===
-      'all_green'
-    ) {
-      serverBusy =
-        false;
-
-
-      setStatus(
-        '⚠️ <b>Все подходящие ячейки E этого артикула прямо сейчас ярко-зелёные.</b><br><br>' +
-        escapeHtml(
-          res.article
-        ) +
-        '<br>' +
-        escapeHtml(
-          res.name
-        ),
-        'bad'
-      );
-
-
-      return;
-    }
-
-
-    if (
-      res.type ===
-      'not_found'
-    ) {
-      serverBusy =
-        false;
-
-
-      setStatus(
-        '❌ <b>Данного товара нет в этом списке</b>',
-        'bad'
-      );
-
-
-      return;
-    }
-
-
-    serverBusy =
-      false;
-
-
-    setStatus(
-      '❌ Неизвестный ответ сервера.',
-      'bad'
-    );
-  }
-
-  catch(err) {
-    serverBusy =
-      false;
-
-
-    setStatus(
-      '❌ ' +
-      escapeHtml(
-        err.message ||
-        String(err)
-      ),
-      'bad'
-    );
-  }
 }
 
 
-/* ============================================================
-   LEVENSHTEIN
-============================================================ */
-
-function levenshtein(
-  a,
-  b
-) {
-  const m =
-    a.length;
-
-
-  const n =
-    b.length;
-
-
-  const prev =
-    new Array(
-      n + 1
-    );
-
-
-  const curr =
-    new Array(
-      n + 1
-    );
-
-
-  for (
-    let j = 0;
-    j <= n;
-    j++
-  ) {
-    prev[j] =
-      j;
-  }
-
-
-  for (
-    let i = 1;
-    i <= m;
-    i++
-  ) {
-    curr[0] =
-      i;
-
-
-    for (
-      let j = 1;
-      j <= n;
-      j++
-    ) {
-      const cost =
-        a[
-          i - 1
-        ]
-        ===
-        b[
-          j - 1
-        ]
-          ? 0
-          : 1;
-
-
-      curr[j] =
-        Math.min(
-          prev[j] + 1,
-          curr[
-            j - 1
-          ] + 1,
-          prev[
-            j - 1
-          ] + cost
-        );
-    }
-
-
-    for (
-      let j = 0;
-      j <= n;
-      j++
-    ) {
-      prev[j] =
-        curr[j];
-    }
-  }
-
-
-  return prev[n];
-}
-
-
-/* ============================================================
+/* =========================
    UI
-============================================================ */
+========================= */
 
-function updateSummary(data) {
+function updateSummary(
+  data
+) {
+
   if (!data) {
     return;
   }
@@ -3255,6 +1789,7 @@ function setStatus(
   html,
   type
 ) {
+
   document
     .getElementById(
       'statusCard'
@@ -3273,47 +1808,31 @@ function setStatus(
 }
 
 
-function setOcrBadge(text) {
-  document
-    .getElementById(
-      'ocrBadge'
-    )
-    .textContent =
-    text;
+function showError(
+  error
+) {
+
+  serverBusy =
+    false;
+
+
+  setStatus(
+
+    '❌ ' +
+    escapeHtml(
+      error.message ||
+      String(error)
+    ),
+
+    'bad'
+  );
 }
 
 
-function showSeen(text) {
-  const cleaned =
-    String(
-      text || ''
-    )
-      .replace(
-        /\s+/g,
-        ' '
-      )
-      .trim()
-      .slice(
-        0,
-        250
-      );
+function escapeHtml(
+  value
+) {
 
-
-  document
-    .getElementById(
-      'seen'
-    )
-    .textContent =
-    cleaned
-      ? (
-          'OCR прочитал: ' +
-          cleaned
-        )
-      : 'OCR пока не прочитал текст.';
-}
-
-
-function escapeHtml(value) {
   return String(
     value || ''
   )
@@ -3332,66 +1851,388 @@ function escapeHtml(value) {
     .replace(
       /"/g,
       '&quot;'
-    )
-    .replace(
-      /'/g,
-      '&#039;'
     );
 }
 
 
-function vibrate(pattern) {
+function vibrate(
+  pattern
+) {
+
   try {
+
     navigator.vibrate(
       pattern
     );
-  }
 
-  catch(e) {}
+  } catch(e) {}
 }
 
 
-/* ============================================================
+/* =========================
    AUTO LOGIN
-============================================================ */
+========================= */
 
 window.onload =
-async function() {
-  if (!accessPin) {
-    return;
+  async function() {
+
+    if (!accessPin) {
+      return;
+    }
+
+
+    document
+      .getElementById(
+        'pin'
+      )
+      .value =
+      accessPin;
+
+
+    try {
+
+      const response =
+        await api(
+          'init'
+        );
+
+
+      initApp(
+        response.data
+      );
+
+    }
+
+    catch(err) {
+
+      localStorage
+        .removeItem(
+          'warehousePin'
+        );
+
+
+      accessPin =
+        '';
+    }
+  };
+
+</script>
+
+
+<script>
+/* Вкладки, выбор поставок и возвраты. Старый драйвер камеры сохранён. */
+let scanMode='accept', selectedBatches='', acceptCatalog=[], returnCatalog=[];
+let scanArmed=true, modeEpoch=0, cameraStarting=false, returnOperation=null;
+let returnSheetId='', retryRequired=false;
+const el=id=>document.getElementById(id);
+const nativeApi=api;
+// Native API returns {ok,data/result}; acceptance now uses the actual backend contract.
+api=function(action,params={}) {
+  if(action==='summary') params.batchIds=selectedBatches;
+  return nativeApi(action,params);
+};
+const controls=document.createElement('div');
+controls.className='card';
+controls.innerHTML=`
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <button id="tabAccept" class="blue" onclick="switchMode('accept')">Приёмка</button>
+    <button id="tabReturns" class="gray" onclick="switchMode('returns')">Возвраты</button>
+  </div>
+  <div id="acceptControls"><b>Поставки для приёмки</b><div id="batchChoices" style="max-height:200px;overflow:auto;margin:12px 0"></div>
+    <button class="blue" onclick="loadBatches()">Применить выбранные даты</button></div>
+  <div id="returnControls" class="hidden"><label>Лист отчёта <select id="reportSheet" onchange="loadReturnCatalog()"></select></label>
+    <p class="small">Ищем снизу вверх в выбранном листе. Красные номера пропускаем.</p>
+    <label>Что сканировать <select id="scanKind"><option value="article">Артикул</option><option value="order">Номер заказа</option></select></label>
+    <input id="orderFilter" placeholder="Номер заказа для уточнения (необязательно)" inputmode="numeric"></div>
+  <div style="display:flex;gap:8px;margin-top:12px"><input id="manualCode" placeholder="Артикул или наименование" style="min-width:0;flex:1">
+    <button class="blue" style="width:auto" onclick="manualScan()">Внести</button></div>
+  <button id="nextScan" class="gray" onclick="armScan()" style="margin-top:10px">Следующий товар</button>
+  <button id="retryReturn" class="blue hidden" onclick="commitReturn()">Повторить ту же операцию</button>
+  <button id="cancelReturn" class="gray hidden" onclick="cancelReturn()">Отменить, если товар ещё не записан</button>
+  <button class="gray" onclick="toggleTorch()" style="margin-top:8px">Фонарик</button>
+  <div id="returnChoices"></div>`;
+el('app').prepend(controls);
+const extraStyle=document.createElement('style');
+extraStyle.textContent='select{max-width:100%;padding:10px;background:#182334;color:white;border:1px solid #45516a;border-radius:8px;margin:6px 0}#batchChoices label{display:block;padding:8px}#batchChoices input{width:auto;margin-right:8px}#orderFilter,#manualCode{box-sizing:border-box;padding:12px}button:disabled{opacity:.45}';
+document.head.append(extraStyle);
+el('manualCode').addEventListener('keydown',e=>{if(e.key==='Enter')manualScan();});
+el('scanKind').addEventListener('change',()=>{
+  scanArmed=false; el('manualCode').placeholder=el('scanKind').value==='order'?'Номер заказа':'Артикул или наименование';
+  setStatus('Нажмите «Следующий товар», чтобы начать сканирование.','search');
+});
+// Replace outdated description from the supplied HTML.
+const info=el('app').lastElementChild;
+if(info && info.querySelector('.small')) info.querySelector('.small').textContent='Камера читает штрихкод и напечатанный артикул. После успешной обработки нажмите «Следующий товар». Ручной ввод доступен всегда.';
+
+initApp=function(data) {
+  el('login').classList.add('hidden'); el('app').classList.remove('hidden');
+  el('shipment').textContent='Приёмка • '+data.sheetName;
+  el('batchChoices').innerHTML=(data.batches||[]).map(b=>
+    '<label><input type="checkbox" value="'+escapeHtml(b.id)+'">'+escapeHtml(b.label)+' · '+b.totalUnits+' шт.</label>').join('') || 'В текущем листе нет поставок.';
+  updateSummary({accepted:0,expected:0,remaining:0});
+  scanArmed=false; setStatus('Выберите даты для приёмки или откройте «Возвраты».','search');
+  try {returnOperation=JSON.parse(localStorage.getItem('rimsPendingReturn')||'null');} catch(e){returnOperation=null;}
+  if(returnOperation) {
+    retryRequired=true; el('retryReturn').classList.remove('hidden'); el('cancelReturn').classList.remove('hidden');
+    setStatus('Есть незавершённый возврат. Нажмите «Повторить ту же операцию».','warn');
   }
-
-
-  document
-    .getElementById(
-      'pin'
-    )
-    .value =
-    accessPin;
-
-
+};
+async function loadBatches() {
+  if(serverBusy || retryRequired) return;
+  const ids=[...el('batchChoices').querySelectorAll('input:checked')].map(x=>x.value).join('~');
+  if(!ids){setStatus('Выберите хотя бы одну поставку.','warn');return;}
+  serverBusy=true; scanArmed=false;
   try {
-    const response =
-      await api(
-        'init'
-      );
-
-
-    initApp(
-      response.data
-    );
+    const response=await api('catalog',{batchIds:ids});
+    selectedBatches=ids; acceptCatalog=response.data.catalog||[];
+    catalog=acceptCatalog; updateSummary(response.data.summary); armScan();
+    await startCamera();
+  } catch(e){showError(e);} finally{serverBusy=false;}
+}
+async function switchMode(mode) {
+  if(serverBusy || ocrBusy || retryRequired){setStatus('Сначала завершите текущую операцию.','warn');return;}
+  modeEpoch++; scanMode=mode; scanArmed=false; pendingBarcode='';
+  el('acceptControls').classList.toggle('hidden',mode!=='accept');
+  el('returnControls').classList.toggle('hidden',mode!=='returns');
+  el('tabAccept').className=mode==='accept'?'blue':'gray'; el('tabReturns').className=mode==='returns'?'blue':'gray';
+  document.querySelector('.stats').classList.toggle('hidden',mode==='returns');
+  el('returnChoices').innerHTML='';
+  if(mode==='returns') {
+    el('shipment').textContent='Возвраты';
+    // Ask for camera access directly from the user's tab click.
+    const cameraPromise=startCamera();
+    try {
+      serverBusy=true;
+      const r=await api('returns_init');
+      el('reportSheet').innerHTML=r.data.sheets.map(s=>'<option value="'+s.id+'">'+escapeHtml(s.name)+'</option>').join('');
+      el('reportSheet').value=String(r.data.current||'');
+    } catch(e){showError(e);return;} finally{serverBusy=false;}
+    await loadReturnCatalog(); await cameraPromise;
+  } else {
+    catalog=acceptCatalog; el('shipment').textContent='Приёмка';
+    if(selectedBatches)armScan(); else setStatus('Выберите поставки и нажмите «Применить выбранные даты».','search');
   }
-
-  catch(err) {
-    localStorage
-      .removeItem(
-        'warehousePin'
-      );
-
-
-    accessPin =
-      '';
+}
+async function loadReturnCatalog() {
+  if(serverBusy || retryRequired)return;
+  serverBusy=true; scanArmed=false; modeEpoch++;
+  try {
+    returnSheetId=el('reportSheet').value;
+    const r=await api('returns_catalog',{sheetId:returnSheetId});
+    returnCatalog=r.data.catalog||[]; catalog=returnCatalog;
+    scanArmed=true; setStatus('Готово. Наведите камеру на артикул или введите его вручную.','search');
+  }catch(e){showError(e);}finally{serverBusy=false;}
+}
+function armScan() {
+  if(retryRequired){setStatus('Сначала повторите незавершённую операцию.','warn');return;}
+  if(scanMode==='accept' && !selectedBatches)return;
+  scanArmed=true;pendingBarcode='';lastBarcode='';lastArticle='';cooldownUntil=0;
+  el('returnChoices').innerHTML='';setStatus('Готово к следующему товару.','search');
+}
+const originalStartCamera=startCamera;
+initOcr=async function(){
+  if(ocrReady||ocrWorker)return;
+  try{
+    ocrWorker=await Tesseract.createWorker('eng');
+    await ocrWorker.setParameters({tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-./ ',preserve_interword_spaces:'1'});
+    ocrReady=true;
+    if(scanArmed&&!serverBusy)setStatus('Камера готова. Наведите на артикул.','search');
+    setInterval(()=>runOcr(false),1900);
+  }catch(e){ocrWorker=null;setStatus('OCR не загрузился. Доступны штрихкод и ручной ввод.','warn');}
+};
+startCamera=async function(){
+  if(cameraStarted||cameraStarting)return;
+  cameraStarting=true;
+  try{await originalStartCamera();}finally{cameraStarting=false;}
+};
+let torchOn=false;
+async function toggleTorch(){
+  try {
+    if(!qr || !cameraStarted)throw new Error('Сначала включите камеру.');
+    await qr.applyVideoConstraints({advanced:[{torch:!torchOn}]});torchOn=!torchOn;
+  }catch(e){setStatus('Фонарик недоступен на этой камере.','warn');}
+}
+function exactMatches(text,items) {
+  const tokens=new Set(getCandidates(text));
+  const full=normalize(text);
+  let matches=items.filter(i=>tokens.has(normalize(i.article)) || normalize(i.article)===full || normalize(i.name)===full);
+  const branded=matches.filter(i=>i.brand && tokens.has(normalize(i.brand)));
+  if(branded.length)matches=branded;
+  // Do not guess between brands or articles when several labels are visible.
+  return matches.filter((v,i,a)=>a.findIndex(x=>x.articleKey===v.articleKey && x.brandKey===v.brandKey)===i);
+}
+findArticle=function(text){const matches=exactMatches(text,catalog);return matches.length===1?matches[0]:null;};
+function requestId(){return 'ret_'+(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'_'+Math.random().toString(36).slice(2));}
+async function findReturn(article,order,brandKey) {
+  if(serverBusy || retryRequired)return;
+  serverBusy=true;scanArmed=false;
+  setStatus('Ищу ближайший заказ снизу вверх…','search');
+  let next=null;
+  try {
+    const r=await api('returns_find',{sheetId:returnSheetId,article:article||'',order:order||'',brandKey:brandKey||''});
+    const matches=r.data.matches||[];
+    if(!matches.length){setStatus('Не найден подходящий заказ без красной отметки. Проверьте ввод или выберите другой лист отчёта.','warn');return;}
+    if(matches.length===1){next=matches[0];}
+    else {
+      setStatus('В заказе несколько позиций. Выберите товар для возврата.','warn');
+      const box=el('returnChoices');box.innerHTML='';
+      matches.forEach(m=>{
+        const b=document.createElement('button');b.className='gray';
+        b.textContent=m.name+' · '+m.qty+' шт. · '+m.store;
+        b.onclick=()=>beginReturn(m);box.append(b);
+      });
+    }
+  }catch(e){showError(e);}finally{serverBusy=false;}
+  if(next)await beginReturn(next);
+}
+async function beginReturn(match){
+  if(serverBusy||retryRequired)return;
+  returnOperation={ticket:match.ticket,requestId:requestId()};
+  try{localStorage.setItem('rimsPendingReturn',JSON.stringify(returnOperation));}
+  catch(e){returnOperation=null;showError(new Error('Браузер не разрешил сохранить операцию. Разрешите хранение данных сайта.'));return;}
+  retryRequired=true;el('returnChoices').innerHTML='';await commitReturn();
+}
+async function commitReturn(){
+  if(serverBusy||!returnOperation)return;
+  serverBusy=true;scanArmed=false;
+  el('retryReturn').classList.add('hidden');
+  el('cancelReturn').classList.add('hidden');
+  setStatus('Переношу товар…','search');
+  try{
+    const r=await api('returns_commit',{ticket:JSON.stringify(returnOperation.ticket),requestId:returnOperation.requestId});
+    localStorage.removeItem('rimsPendingReturn');returnOperation=null;retryRequired=false;
+    setStatus('✅ '+escapeHtml(r.result.name)+'<br>Заказ '+escapeHtml(r.result.order)+' · '+escapeHtml(r.result.qty)+' шт.<br>'+escapeHtml(r.result.destination)+'<br>Номер заказа отмечен красным.<br><br>Нажмите «Следующий товар».','ok');
+    vibrate([80,60,80]);
+  }catch(e){showError(e);el('retryReturn').classList.remove('hidden');el('cancelReturn').classList.remove('hidden');}
+  finally{serverBusy=false;}
+}
+async function cancelReturn(){
+  if(serverBusy||!returnOperation)return;
+  serverBusy=true;
+  try{
+    await api('returns_cancel',{requestId:returnOperation.requestId});
+    localStorage.removeItem('rimsPendingReturn');returnOperation=null;retryRequired=false;
+    el('retryReturn').classList.add('hidden');el('cancelReturn').classList.add('hidden');
+    setStatus('Незаписанная операция отменена. Можно отсканировать товар заново.','search');
+  }catch(e){showError(e);}finally{serverBusy=false;}
+}
+async function acceptItem(item,barcode){
+  if(serverBusy||!selectedBatches||retryRequired)return;
+  serverBusy=true;scanArmed=false;
+  try{
+    const r=await api(item?'accept_ocr':'accept_scan',{
+      batchIds:selectedBatches,barcode:barcode||'',articleKey:item?item.articleKey:'',brandKey:item?item.brandKey:''});
+    handleResult(r.result);
+  }catch(e){showError(e);}finally{serverBusy=false;}
+}
+handleResult=function(r){
+  if(r.summary)updateSummary(r.summary);
+  if(r.type==='unknown'){
+    pendingBarcode=r.barcode;scanArmed=true;
+    setStatus('Штрихкод неизвестен. Наведите камеру на напечатанный артикул для привязки.','warn');return;
   }
+  if(r.type==='accepted'){
+    pendingBarcode='';
+    setStatus('✅ '+escapeHtml(r.name)+'<br>Принято '+r.itemAccepted+' из '+r.itemExpected+'<br>'+escapeHtml(r.batch)+'<br>Нажмите «Следующий товар».'+(r.kaspiQueueError?'<br>Ошибка очереди Kaspi: '+escapeHtml(r.kaspiQueueError):''),r.rowComplete?'ok':'warn');
+    vibrate([80,60,80]);return;
+  }
+  setStatus(r.type==='all_green'?'Все единицы этого товара уже приняты.':'Товар не найден в выбранных поставках.','warn');
+};
+barcodeFound=async function(code){
+  if(!scanArmed||serverBusy||ocrBusy||retryRequired||Date.now()<cooldownUntil)return;
+  if(code===pendingBarcode)return;
+  if(scanMode==='returns'){
+    if(el('scanKind').value==='order')await findReturn('',code,'');
+    else{
+      const matches=exactMatches(code,returnCatalog);
+      if(matches.length===1)await findReturn(matches[0].article,el('orderFilter').value.trim(),matches[0].brandKey);
+      // Unknown EAN is not an article: keep waiting for printed article OCR.
+    }
+  }else await acceptItem(null,code);
+};
+runOcr=async function(forced){
+  if(!ocrReady||ocrBusy||serverBusy||!scanArmed||retryRequired)return;
+  const frame=getFrame();if(!frame)return;
+  const epoch=modeEpoch;ocrBusy=true;
+  let action=null;
+  try{
+    const result=await ocrWorker.recognize(frame);
+    if(epoch!==modeEpoch||!scanArmed)return;
+    const text=result.data.text||'';
+    if(scanMode==='returns'&&el('scanKind').value==='order'){
+      const numbers=[...new Set(text.match(/\b\d{9,12}\b/g)||[])];
+      if(numbers.length===1)action=()=>findReturn('',numbers[0],'');
+    }else{
+      const matches=exactMatches(text,catalog);
+      if(matches.length===1){const m=matches[0];action=()=>scanMode==='returns'?findReturn(m.article,el('orderFilter').value.trim(),m.brandKey):acceptItem(m,pendingBarcode);}
+      else if(matches.length>1){setStatus('В кадре несколько товаров. Оставьте одну этикетку или введите артикул вручную.','warn');}
+    }
+    if(!action&&forced)setStatus('Не удалось однозначно прочитать код. Можно ввести его вручную.','warn');
+  }catch(e){showError(e);}finally{ocrBusy=false;}
+  if(action)await action();
+};
+async function manualScan(){
+  if(serverBusy||ocrBusy||retryRequired)return;
+  const text=el('manualCode').value.trim();if(!text)return;
+  if(scanMode==='returns'){
+    if(el('scanKind').value==='order')await findReturn('',text,'');
+    else{
+      const m=exactMatches(text,returnCatalog);
+      if(m.length>1){setStatus('Уточните бренд вместе с артикулом.','warn');return;}
+      await findReturn(m.length?m[0].article:text,el('orderFilter').value.trim(),m.length?m[0].brandKey:'');
+    }
+  }else{
+    const m=exactMatches(text,acceptCatalog);
+    if(m.length!==1){setStatus('Укажите артикул и бренд из выбранной поставки.','warn');return;}
+    await acceptItem(m[0],pendingBarcode);
+  }
+}
+
+</script>
+
+<script>
+/* Connection fix 2026-10-26: staged startup, visible errors, no write retries. */
+const connectionNote = document.createElement('div');
+connectionNote.style.cssText='white-space:pre-wrap;padding:12px;margin-top:10px;color:#dce8ff;overflow-wrap:anywhere';
+connectionNote.setAttribute('role','status');
+document.getElementById('login').appendChild(connectionNote);
+let connecting = false;
+login = async function() {
+  if (connecting) return;
+  const input = document.getElementById('pin');
+  const value = input.value.trim();
+  if (!value) { connectionNote.textContent='Введите PIN.'; return; }
+  connecting = true; accessPin = value;
+  const buttons = [...document.getElementById('login').querySelectorAll('button')];
+  buttons.forEach(b=>b.disabled=true);
+  let stage = 'ping';
+  const started = Date.now();
+  const tick = () => { connectionNote.textContent =
+    (stage === 'ping' ? 'Проверяю связь… ' : 'Связь есть. Загружаю поставки… ') +
+    Math.floor((Date.now()-started)/1000) + ' сек.'; };
+  tick(); const interval = setInterval(tick, 1000);
+  try {
+    await api('ping');
+    stage = 'init'; tick();
+    const response = await api('init');
+    if (!response.data || !Array.isArray(response.data.batches))
+      throw new Error('Сервер вернул неожиданный формат поставок. Проверьте развёртывание сканера.');
+    localStorage.setItem('warehousePin', accessPin);
+    initApp(response.data);
+    connectionNote.textContent='';
+  } catch(error) {
+    connectionNote.textContent=error.message;
+    if (String(error.message).includes('BAD_PIN')) {
+      localStorage.removeItem('warehousePin'); accessPin='';
+    }
+  } finally {
+    clearInterval(interval); connecting=false;
+    buttons.forEach(b=>b.disabled=false);
+  }
+};
+window.onload = function() {
+  connectionNote.textContent='Подключение • версия исправления 26.10';
+  if (accessPin) { document.getElementById('pin').value=accessPin; login(); }
 };
 </script>
 
