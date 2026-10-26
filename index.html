@@ -1993,7 +1993,7 @@ async function switchMode(mode) {
     try {
       serverBusy=true;
       const r=await api('returns_init');
-      if(r.data.returnsRevision!=='AUTO_RETURNS_3') throw new Error('Подключён прежний код возвратов. Опубликуйте SCANNER_AUTO_BACKEND как новую версию существующего развёртывания.');
+      if(r.data.returnsRevision!=='AUTO_RETURNS_QTY_5') throw new Error('Подключён прежний код возвратов. Опубликуйте SCANNER_RETURN_QTY_DEFAULT_ONE как новую версию существующего развёртывания.');
       el('reportSheet').innerHTML=r.data.sheets.map(s=>'<option value="'+s.id+'">'+escapeHtml(s.name)+'</option>').join('');
       el('reportSheet').value=String(r.data.current||'');
     } catch(e){showError(e);return;} finally{serverBusy=false;}
@@ -2053,15 +2053,33 @@ function exactMatches(text,items) {
 }
 findArticle=function(text){const matches=exactMatches(text,catalog);return matches.length===1?matches[0]:null;};
 function requestId(){return 'ret_'+(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'_'+Math.random().toString(36).slice(2));}
+function askReturnQuantity(label){
+  return new Promise(resolve=>{
+    const dialog=document.createElement('dialog');
+    dialog.style.cssText='background:#182334;color:white;border:1px solid #55708c;border-radius:14px;max-width:360px;width:85%;padding:20px';
+    dialog.innerHTML='<form><b>Количество для возврата</b><p class="quantityLabel"></p><label>Сколько штук возвращается?<input name="quantity" type="number" inputmode="numeric" min="1" step="1" value="1" required placeholder="Введите количество" style="box-sizing:border-box;width:100%;padding:12px;margin:12px 0"></label><p class="small">По умолчанию 1 шт. Если возвращается больше — измените количество перед подтверждением.</p><button type="submit" class="blue">Подтвердить количество</button><button type="button" class="gray cancelQty" style="margin-top:8px">Отмена</button></form>';
+    dialog.querySelector('.quantityLabel').textContent=label;
+    let settled=false;
+    function finish(value){if(settled)return;settled=true;dialog.close();dialog.remove();resolve(value);}
+    dialog.querySelector('form').onsubmit=e=>{e.preventDefault();const input=dialog.querySelector('input'),qty=Number(input.value);if(!Number.isSafeInteger(qty)||qty<1){input.setCustomValidity('Укажите целое количество от 1');input.reportValidity();return;}finish(qty);};
+    dialog.querySelector('input').oninput=e=>e.target.setCustomValidity('');
+    dialog.querySelector('.cancelQty').onclick=()=>finish(null);
+    dialog.addEventListener('cancel',e=>{e.preventDefault();finish(null);});
+    document.body.appendChild(dialog);dialog.showModal();dialog.querySelector('input').focus();dialog.querySelector('input').select();
+  });
+}
 async function findReturn(article,order,brandKey) {
   if(serverBusy || retryRequired)return;
   serverBusy=true;scanArmed=false;
-  setStatus('Ищу ближайший заказ снизу вверх…','search');
+  setStatus('Укажите количество возвращаемого товара.','search');
   let next=null;
   try {
-    const r=await api('returns_find',{sheetId:returnSheetId,article:article||'',order:order||'',brandKey:brandKey||''});
+    const quantity=await askReturnQuantity(article || ('Заказ '+order));
+    if(quantity===null){scanArmed=true;setStatus('Возврат отменён. Товар не добавлен.','search');return;}
+    setStatus('Ищу '+escapeHtml(article || order)+' · '+quantity+' шт.…','search');
+    const r=await api('returns_find',{sheetId:returnSheetId,article:article||'',order:order||'',brandKey:brandKey||'',quantity:quantity});
     const matches=r.data.matches||[];
-    if(!matches.length){setStatus('Артикул не найден с выбранными брендом, листом и фильтром заказа. Красная отметка не запрещает перенос.','warn');return;}
+    if(!matches.length){setStatus('Артикул не найден. Ничего не перенесено. Проверьте лист, бренд или номер заказа.','warn');return;}
     if(matches.length===1){next=matches[0];}
     else {
       setStatus('В заказе несколько позиций. Выберите товар для возврата.','warn');
