@@ -1061,87 +1061,32 @@ async function initOcr() {
    CAMERA FRAME
 ========================= */
 
+// Reuse canvas and limit OCR size; retain the entire image for multiline labels.
+let ocrFrameCanvas=null, ocrFramePass=0;
 function getFrame() {
-
-  const video =
-    document.querySelector(
-      '#reader video'
-    );
-
-
-  if (
-    !video ||
-    !video.videoWidth
-  ) {
-    return null;
+  const video=document.querySelector('#reader video');
+  if(!video || !video.videoWidth || video.readyState<2)return null;
+  if(!ocrFrameCanvas)ocrFrameCanvas=document.createElement('canvas');
+  const canvas=ocrFrameCanvas, ctx=canvas.getContext('2d',{willReadFrequently:true});
+  const scale=Math.min(1.5,1280/Math.max(video.videoWidth,video.videoHeight));
+  const w=Math.round(video.videoWidth*scale),h=Math.round(video.videoHeight*scale);
+  if(canvas.width!==w || canvas.height!==h){canvas.width=w;canvas.height=h;}
+  ctx.drawImage(video,0,0,w,h);
+  const pass=ocrFramePass++%3;
+  if(pass===0)return canvas;
+  const frame=ctx.getImageData(0,0,w,h),d=frame.data,hist=new Uint32Array(256);
+  for(let i=0;i<d.length;i+=4){const v=(77*d[i]+150*d[i+1]+29*d[i+2])>>8;hist[v]++;}
+  const pixels=w*h;let sum=0,lo=0,hi=255;
+  for(let i=0;i<256;i++){sum+=hist[i];if(sum>=pixels*.02){lo=i;break;}}
+  sum=0;for(let i=255;i>=0;i--){sum+=hist[i];if(sum>=pixels*.02){hi=i;break;}}
+  const span=Math.max(30,hi-lo);
+  for(let i=0;i<d.length;i+=4){
+    let v=Math.max(0,Math.min(255,(((77*d[i]+150*d[i+1]+29*d[i+2])>>8)-lo)*255/span));
+    if(pass===2)v=255-v;
+    d[i]=d[i+1]=d[i+2]=v;
   }
-
-
-  const canvas =
-    document
-      .createElement(
-        'canvas'
-      );
-
-
-  const ctx =
-    canvas
-      .getContext(
-        '2d'
-      );
-
-
-  const width =
-    video.videoWidth *
-    .95;
-
-
-  const height =
-    video.videoHeight *
-    .82;
-
-
-  const x =
-    (
-      video.videoWidth -
-      width
-    ) / 2;
-
-
-  const y =
-    (
-      video.videoHeight -
-      height
-    ) / 2;
-
-
-  canvas.width =
-    width * 1.4;
-
-
-  canvas.height =
-    height * 1.4;
-
-
-  ctx.drawImage(
-
-    video,
-
-    x,
-    y,
-    width,
-    height,
-
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
-
-
-  return canvas;
+  ctx.putImageData(frame,0,0);return canvas;
 }
-
 
 /* =========================
    OCR
@@ -1383,7 +1328,7 @@ function getCandidates(
 
     for (
       let count = 1;
-      count <= 3;
+      count <= 6;
       count++
     ) {
 
@@ -2037,8 +1982,8 @@ initOcr=async function(){
     ocrWorker=await Tesseract.createWorker('eng');
     await ocrWorker.setParameters({tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-./ ',preserve_interword_spaces:'1'});
     ocrReady=true;
-    if(scanArmed&&!serverBusy)setStatus('Камера готова. Наведите на артикул.','search');
-    setInterval(()=>runOcr(false),1900);
+    if(scanArmed&&!serverBusy)setStatus('Камера готова. Держите все строки артикула в кадре.','search');
+    setInterval(()=>runOcr(false),300);
   }catch(e){ocrWorker=null;setStatus('OCR не загрузился. Доступны штрихкод и ручной ввод.','warn');}
 };
 startCamera=async function(){
@@ -2146,14 +2091,15 @@ handleResult=function(r){
   setStatus(r.type==='all_green'?'Все единицы этого товара уже приняты.':'Товар не найден в выбранных поставках.','warn');
 };
 // Camera duplicate guard: one operation per visible label; 3 clear OCR frames release it.
-let cameraLastKey='', cameraLastBarcode='', cameraClearFrames=0;
+let cameraLastKey='', cameraLastBarcode='', cameraClearFrames=0, cameraClearSince=0;
 function cameraMayProcess(key) {
   if(!key || key===cameraLastKey)return false;
-  cameraLastKey=key; cameraClearFrames=0; return true;
+  cameraLastKey=key; cameraClearFrames=0;cameraClearSince=0; return true;
 }
 function cameraObserveEmpty() {
   cameraClearFrames++;
-  if(cameraClearFrames>=3){cameraLastKey='';cameraLastBarcode='';pendingBarcode='';}
+  if(!cameraClearSince)cameraClearSince=Date.now();
+  if(cameraClearFrames>=3 && Date.now()-cameraClearSince>=5000){cameraLastKey='';cameraLastBarcode='';pendingBarcode='';}
 }
 barcodeFound=async function(code){
   if(!scanArmed||serverBusy||ocrBusy||retryRequired)return;
@@ -2185,19 +2131,19 @@ runOcr=async function(forced){
     if(scanMode==='returns'&&el('scanKind').value==='order'){
       const numbers=[...new Set(text.match(/\b\d{9,12}\b/g)||[])];
       if(numbers.length===1){
-        cameraClearFrames=0;
+        cameraClearFrames=0;cameraClearSince=0;
         if(cameraMayProcess('order:'+numbers[0]))action=()=>findReturn('',numbers[0],'');
-      }else if(!text.trim())cameraObserveEmpty();else cameraClearFrames=0;
+      }else if(!text.trim())cameraObserveEmpty();else {cameraClearFrames=0;cameraClearSince=0;}
     }else{
       const matches=exactMatches(text,catalog);
       if(matches.length===1){
-        cameraClearFrames=0;
+        cameraClearFrames=0;cameraClearSince=0;
         const m=matches[0], key=scanMode+':'+m.brandKey+':'+m.articleKey;
         if(cameraMayProcess(key))action=()=>scanMode==='returns'?findReturn(m.article,el('orderFilter').value.trim(),m.brandKey):acceptItem(m,'');
       }else if(matches.length>1){
-        cameraClearFrames=0;
+        cameraClearFrames=0;cameraClearSince=0;
         setStatus('В кадре несколько товаров. Оставьте одну этикетку.','warn');
-      }else if(!text.trim())cameraObserveEmpty();else cameraClearFrames=0;
+      }else if(!text.trim())cameraObserveEmpty();else {cameraClearFrames=0;cameraClearSince=0;}
     }
     if(!action&&forced)setStatus('Для повторного такого же артикула уберите этикетку из кадра на 6 секунд или используйте ручной ввод.','warn');
   }catch(e){showError(e);}finally{ocrBusy=false;}
